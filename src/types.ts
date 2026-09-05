@@ -9,6 +9,7 @@ export interface HouseholdRecord {
   memberCount: number | '';
   notes: string;
   timestamp: string;
+  collectorName: string;
   rowIndex?: number;
 }
 

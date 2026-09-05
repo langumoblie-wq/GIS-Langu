@@ -39,7 +39,13 @@ function getSheet() {
   
   // Initialize header if empty
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['ID', 'Timestamp', 'Village', 'HouseNumber', 'HouseRegNumber', 'HeadOfHousehold', 'MemberCount', 'Latitude', 'Longitude', 'Notes']);
+    sheet.appendRow(['ID', 'Timestamp', 'Village', 'HouseNumber', 'HouseRegNumber', 'HeadOfHousehold', 'MemberCount', 'Latitude', 'Longitude', 'Notes', 'CollectorName']);
+  } else {
+    // Check if the 11th column exists in the header, if not, add it for backwards compatibility
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (headers.length < 11 || headers[10] !== 'CollectorName') {
+      sheet.getRange(1, 11).setValue('CollectorName');
+    }
   }
   return sheet;
 }
@@ -65,7 +71,8 @@ function getRecords() {
         memberCount: row[6],
         latitude: row[7],
         longitude: row[8],
-        notes: row[9]
+        notes: row[9],
+        collectorName: row[10] || ''
       });
     }
     
@@ -93,7 +100,8 @@ function addRecord(record) {
       record.memberCount,
       record.latitude,
       record.longitude,
-      record.notes || ''
+      record.notes || '',
+      record.collectorName || ''
     ]);
     
     return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
@@ -138,7 +146,7 @@ function updateRecord(record) {
       if (data[i][0] === record.id) {
         var rowIndex = i + 1;
         // The record might only have updated fields, but we assume full replacement
-        sheet.getRange(rowIndex, 1, 1, 10).setValues([[
+        sheet.getRange(rowIndex, 1, 1, 11).setValues([[
           record.id,
           record.timestamp, // Keep original timestamp or new, depending on what client sends
           record.village,
@@ -148,7 +156,8 @@ function updateRecord(record) {
           record.memberCount,
           record.latitude,
           record.longitude,
-          record.notes || ''
+          record.notes || '',
+          record.collectorName || ''
         ]]);
         return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
           .setMimeType(ContentService.MimeType.JSON);

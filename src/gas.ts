@@ -70,6 +70,7 @@ function processGASData(data: any): HouseholdRecord[] {
       latitude: row.latitude ? Number(row.latitude) : null,
       longitude: row.longitude ? Number(row.longitude) : null,
       notes: row.notes || '',
+      collectorName: row.collectorName || '',
     });
   }
   return records.reverse();

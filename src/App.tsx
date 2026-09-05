@@ -10,6 +10,7 @@ export default function App() {
     village: VILLAGES[0],
     houseRegistrationNumber: '',
     memberCount: '',
+    collectorName: '',
   });
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
@@ -121,6 +122,7 @@ export default function App() {
       longitude: formData.longitude || null,
       memberCount: formData.memberCount === '' ? 0 : Number(formData.memberCount),
       notes: formData.notes || '',
+      collectorName: formData.collectorName || '',
       timestamp: editingId ? (records.find(r => r.id === editingId)?.timestamp || new Date().toISOString()) : new Date().toISOString(),
     };
 
@@ -140,6 +142,7 @@ export default function App() {
         headOfHousehold: '',
         memberCount: '',
         notes: '',
+        collectorName: formData.collectorName, // Keep the collector name for next entry
         latitude: undefined,
         longitude: undefined,
       });
@@ -160,6 +163,7 @@ export default function App() {
       memberCount: record.memberCount.toString(),
       village: record.village,
       notes: record.notes || '',
+      collectorName: record.collectorName || '',
       latitude: record.latitude || undefined,
       longitude: record.longitude || undefined,
     });
@@ -176,6 +180,7 @@ export default function App() {
       memberCount: '',
       village: VILLAGES[0],
       notes: '',
+      collectorName: '',
       latitude: undefined,
       longitude: undefined,
     });
@@ -205,7 +210,7 @@ export default function App() {
       return;
     }
 
-    const headers = ['ลำดับ', 'วันที่บันทึก', 'หมู่บ้าน', 'บ้านเลขที่', 'เลขทะเบียนบ้าน', 'ชื่อเจ้าบ้าน', 'จำนวนสมาชิก', 'ละติจูด (Lat)', 'ลองจิจูด (Lng)', 'หมายเหตุ'];
+    const headers = ['ลำดับ', 'วันที่บันทึก', 'หมู่บ้าน', 'บ้านเลขที่', 'เลขทะเบียนบ้าน', 'ชื่อเจ้าบ้าน', 'จำนวนสมาชิก', 'ละติจูด (Lat)', 'ลองจิจูด (Lng)', 'อสม./ผู้เก็บข้อมูล', 'หมายเหตุ'];
     
     const csvContent = [
       // Add BOM for Excel UTF-8 compatibility
@@ -222,6 +227,7 @@ export default function App() {
           r.memberCount,
           r.latitude,
           r.longitude,
+          `"${r.collectorName || ''}"`,
           `"${r.notes?.replace(/"/g, '""') || ''}"`
         ].join(',');
       })
@@ -415,6 +421,25 @@ export default function App() {
                 />
               </div>
 
+              <div>
+                <label htmlFor="collectorName" className="block text-[11px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">อสม.ที่รับผิดชอบ / ผู้เก็บข้อมูล <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <FileText className="h-4 w-4 text-[#A3A69F]" />
+                  </div>
+                  <input
+                    type="text"
+                    id="collectorName"
+                    name="collectorName"
+                    value={formData.collectorName || ''}
+                    onChange={handleInputChange}
+                    placeholder="ชื่อผู้เก็บข้อมูล"
+                    required
+                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow"
+                  />
+                </div>
+              </div>
+
               {/* Geolocation Section */}
               <div className="bg-[#F4F5F0] rounded-2xl p-4 border border-dashed border-[#A3B18A]">
                 <div className="flex items-center justify-between mb-3">
@@ -571,6 +596,9 @@ export default function App() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-[13px] text-[#7A7E74] mt-2">
                       <p><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">เจ้าบ้าน:</span> {record.headOfHousehold}</p>
                       <p><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">สมาชิก:</span> <span className="font-medium text-[#3A4D3F]">{record.memberCount}</span> คน</p>
+                      {record.collectorName && (
+                        <p className="sm:col-span-2"><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">อสม./ผู้เก็บข้อมูล:</span> <span className="text-[#3A4D3F]">{record.collectorName}</span></p>
+                      )}
                       <div className="sm:col-span-2 flex items-center gap-2 mt-2 text-[11px] font-mono bg-[#F9F9F5] p-2.5 rounded-xl border border-[#E6E4DD]">
                         <div className="bg-[#A3B18A]/20 p-1 rounded-md text-[#5C7F67]">
                           <MapPin className="h-3 w-3 shrink-0" />
