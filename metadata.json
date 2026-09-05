@@ -1,0 +1,6 @@
+{
+  "name": "ระบบบันทึกพิกัดหลังคาเรือน รพ.สต.ละงู",
+  "description": "ระบบสำหรับ อสม. รพ.สต.ละงู เพื่อลงพื้นที่เก็บข้อมูลสุขภาพ จับพิกัด และส่งออกข้อมูลเป็น CSV",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
