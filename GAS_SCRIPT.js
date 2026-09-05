@@ -18,6 +18,10 @@ function doPost(e) {
       return addRecord(body.data);
     } else if (action === 'deleteRecord') {
       return deleteRecord(body.id);
+    } else if (action === 'updateRecord') {
+      return updateRecord(body.data);
+    } else if (action === 'getRecords') {
+      return getRecords();
     }
     
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid action' }))
@@ -111,6 +115,41 @@ function deleteRecord(id) {
       if (data[i][0] === id) {
         // +1 because array is 0-indexed but sheet rows are 1-indexed
         sheet.deleteRow(i + 1);
+        return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Record not found' }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function updateRecord(record) {
+  try {
+    var sheet = getSheet();
+    var data = sheet.getDataRange().getValues();
+    
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === record.id) {
+        var rowIndex = i + 1;
+        // The record might only have updated fields, but we assume full replacement
+        sheet.getRange(rowIndex, 1, 1, 10).setValues([[
+          record.id,
+          record.timestamp, // Keep original timestamp or new, depending on what client sends
+          record.village,
+          record.houseNumber,
+          record.houseRegistrationNumber || '',
+          record.headOfHousehold,
+          record.memberCount,
+          record.latitude,
+          record.longitude,
+          record.notes || ''
+        ]]);
         return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
           .setMimeType(ContentService.MimeType.JSON);
       }

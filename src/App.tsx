@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2 } from 'lucide-react';
+import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X } from 'lucide-react';
 import { HouseholdRecord, VILLAGES } from './types';
-import { fetchRecordsFromGAS, addRecordToGAS, deleteRecordFromGAS } from './gas';
+import { fetchRecordsFromGAS, addRecordToGAS, deleteRecordFromGAS, updateRecordInGAS } from './gas';
 import { Modal } from './components/Modal';
 
 export default function App() {
@@ -18,6 +18,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [gasUrl, setGasUrl] = useState(import.meta.env.VITE_GAS_WEB_APP_URL || 'https://script.google.com/macros/s/AKfycbxCGURRM4ltH4rvZDKNTZ6bOZOwCfZgU_U1ozFr_QRFLDw6I6NK-jfZ6r1E0IlUVA/exec');
   const [isConfiguring, setIsConfiguring] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [modal, setModal] = useState<{
     isOpen: boolean;
@@ -46,9 +47,9 @@ export default function App() {
     try {
       const data = await fetchRecordsFromGAS(gasUrl);
       setRecords(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลได้ โปรดตรวจสอบ Web App URL หรือการตั้งค่า CORS');
+      showAlert('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถดึงข้อมูลได้ โปรดตรวจสอบ Web App URL หรือการตั้งค่า CORS');
     } finally {
       setIsSyncing(false);
     }
@@ -111,7 +112,7 @@ export default function App() {
     }
 
     const newRecord: HouseholdRecord = {
-      id: crypto.randomUUID(),
+      id: editingId || crypto.randomUUID(),
       houseNumber: formData.houseNumber || '',
       houseRegistrationNumber: formData.houseRegistrationNumber || '',
       headOfHousehold: formData.headOfHousehold || '',
@@ -120,12 +121,16 @@ export default function App() {
       longitude: formData.longitude || null,
       memberCount: formData.memberCount === '' ? 0 : Number(formData.memberCount),
       notes: formData.notes || '',
-      timestamp: new Date().toISOString(),
+      timestamp: editingId ? (records.find(r => r.id === editingId)?.timestamp || new Date().toISOString()) : new Date().toISOString(),
     };
 
     setIsSyncing(true);
     try {
-      await addRecordToGAS(gasUrl, newRecord);
+      if (editingId) {
+        await updateRecordInGAS(gasUrl, newRecord);
+      } else {
+        await addRecordToGAS(gasUrl, newRecord);
+      }
       await loadData();
       
       setFormData({
@@ -138,12 +143,43 @@ export default function App() {
         latitude: undefined,
         longitude: undefined,
       });
-      showAlert('สำเร็จ', 'บันทึกข้อมูลลง Google Sheets สำเร็จ', 'success');
+      setEditingId(null);
+      showAlert('สำเร็จ', editingId ? 'อัปเดตข้อมูลลง Google Sheets สำเร็จ' : 'บันทึกข้อมูลลง Google Sheets สำเร็จ', 'success');
     } catch (err) {
       console.error(err);
-      showAlert('ผิดพลาด', 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      showAlert('ผิดพลาด', editingId ? 'อัปเดตข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' : 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
       setIsSyncing(false);
     }
+  };
+
+  const handleEdit = (record: HouseholdRecord) => {
+    setFormData({
+      houseNumber: record.houseNumber,
+      houseRegistrationNumber: record.houseRegistrationNumber || '',
+      headOfHousehold: record.headOfHousehold,
+      memberCount: record.memberCount.toString(),
+      village: record.village,
+      notes: record.notes || '',
+      latitude: record.latitude || undefined,
+      longitude: record.longitude || undefined,
+    });
+    setEditingId(record.id);
+    setActiveTab('form');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setFormData({
+      houseNumber: '',
+      houseRegistrationNumber: '',
+      headOfHousehold: '',
+      memberCount: '',
+      village: VILLAGES[0],
+      notes: '',
+      latitude: undefined,
+      longitude: undefined,
+    });
+    setEditingId(null);
   };
 
   const deleteRecord = (record: HouseholdRecord) => {
@@ -443,14 +479,25 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    disabled={isSyncing}
+                    className="w-full sm:w-1/3 bg-[#F4F5F0] text-[#7A7E74] py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-[#E6E4DD] transition-colors disabled:opacity-50"
+                  >
+                    <X className="h-5 w-5" />
+                    ยกเลิก
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={!gasUrl || isSyncing}
-                  className="w-full bg-[#5C7F67] text-white py-4 rounded-2xl font-bold shadow-lg shadow-[#5C7F67]/20 flex items-center justify-center gap-2 hover:bg-[#4A6753] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`${editingId ? 'w-full sm:w-2/3' : 'w-full'} bg-[#5C7F67] text-white py-4 rounded-2xl font-bold shadow-lg shadow-[#5C7F67]/20 flex items-center justify-center gap-2 hover:bg-[#4A6753] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <Save className="h-5 w-5" />
-                  บันทึกข้อมูลครัวเรือน
+                  {editingId ? 'อัปเดตข้อมูลครัวเรือน' : 'บันทึกข้อมูลครัวเรือน'}
                 </button>
               </div>
             </form>
@@ -503,13 +550,22 @@ export default function App() {
                           <p className="text-[#7A7E74] text-[13px] font-medium mt-1">เลขทะเบียน: <span className="text-[#3A4D3F]">{record.houseRegistrationNumber}</span></p>
                         )}
                       </div>
-                      <button
-                        onClick={() => deleteRecord(record)}
-                        className="text-[#7A7E74] hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-colors"
-                        title="ลบข้อมูล"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleEdit(record)}
+                          className="text-[#5C7F67] hover:text-[#4A6753] p-2 rounded-xl hover:bg-[#5C7F67]/10 transition-colors"
+                          title="แก้ไขข้อมูล"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteRecord(record)}
+                          className="text-[#7A7E74] hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-colors"
+                          title="ลบข้อมูล"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-[13px] text-[#7A7E74] mt-2">
