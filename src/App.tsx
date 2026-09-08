@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { HouseholdRecord, VILLAGES } from './types';
 import { fetchRecordsFromGAS, addRecordToGAS, deleteRecordFromGAS, updateRecordInGAS } from './gas';
 import { Modal } from './components/Modal';
@@ -20,6 +21,11 @@ export default function App() {
   const [gasUrl, setGasUrl] = useState(import.meta.env.VITE_GAS_WEB_APP_URL || 'https://script.google.com/macros/s/AKfycbxCGURRM4ltH4rvZDKNTZ6bOZOwCfZgU_U1ozFr_QRFLDw6I6NK-jfZ6r1E0IlUVA/exec');
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Filters
+  const [filterVillage, setFilterVillage] = useState<string>('');
+  const [filterCollector, setFilterCollector] = useState<string>('');
+  const [filterHouseNumber, setFilterHouseNumber] = useState<string>('');
 
   const [modal, setModal] = useState<{
     isOpen: boolean;
@@ -212,13 +218,16 @@ export default function App() {
 
     const headers = ['ลำดับ', 'วันที่บันทึก', 'หมู่บ้าน', 'บ้านเลขที่', 'เลขทะเบียนบ้าน', 'ชื่อเจ้าบ้าน', 'จำนวนสมาชิก', 'ละติจูด (Lat)', 'ลองจิจูด (Lng)', 'อสม./ผู้เก็บข้อมูล', 'หมายเหตุ'];
     
+    // Export only filtered records if a filter is active, otherwise all
+    const recordsToExport = filteredRecords.length > 0 ? filteredRecords : records;
+
     const csvContent = [
       // Add BOM for Excel UTF-8 compatibility
       '\uFEFF' + headers.join(','),
-      ...records.map((r, index) => {
+      ...recordsToExport.map((r, index) => {
         const date = new Date(r.timestamp).toLocaleString('th-TH');
         return [
-          records.length - index,
+          recordsToExport.length - index,
           `"${date}"`,
           `"${r.village}"`,
           `"${r.houseNumber}"`,
@@ -242,6 +251,55 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
   };
+
+  // Data processing for filters and charts
+  const availableCollectors = useMemo(() => {
+    const colls = new Set(records
+      .filter(r => !filterVillage || r.village === filterVillage)
+      .map(r => r.collectorName)
+      .filter(Boolean)
+    );
+    return Array.from(colls).sort();
+  }, [records, filterVillage]);
+
+  const availableHouseNumbers = useMemo(() => {
+    const houses = new Set(records
+      .filter(r => !filterVillage || r.village === filterVillage)
+      .map(r => r.houseNumber)
+      .filter(Boolean)
+    );
+    return Array.from(houses).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [records, filterVillage]);
+
+  // When village filter changes, reset dependent filters if the selected value is no longer available
+  useEffect(() => {
+    if (filterCollector && !availableCollectors.includes(filterCollector)) setFilterCollector('');
+    if (filterHouseNumber && !availableHouseNumbers.includes(filterHouseNumber)) setFilterHouseNumber('');
+  }, [filterVillage, availableCollectors, availableHouseNumbers]);
+
+  const filteredRecords = useMemo(() => {
+    return records.filter(r => {
+      const matchVillage = !filterVillage || r.village === filterVillage;
+      const matchCollector = !filterCollector || r.collectorName === filterCollector;
+      const matchHouseNumber = !filterHouseNumber || r.houseNumber === filterHouseNumber;
+      return matchVillage && matchCollector && matchHouseNumber;
+    });
+  }, [records, filterVillage, filterCollector, filterHouseNumber]);
+
+  const groupedRecords = useMemo(() => {
+    return filteredRecords.reduce((acc, record) => {
+      if (!acc[record.village]) acc[record.village] = [];
+      acc[record.village].push(record);
+      return acc;
+    }, {} as Record<string, HouseholdRecord[]>);
+  }, [filteredRecords]);
+
+  const chartData = useMemo(() => {
+    return VILLAGES.map(v => ({
+      name: v.replace('หมู่ที่ ', 'ม.'),
+      count: records.filter(r => r.village === v).length
+    }));
+  }, [records]);
 
   return (
     <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#2D302E]">
@@ -535,86 +593,171 @@ export default function App() {
                 <Loader2 className="w-8 h-8 text-[#5C7F67] animate-spin" />
               </div>
             )}
+
+            {/* Dashboard / Charts */}
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD]">
+              <h2 className="text-lg font-bold text-[#3A4D3F] mb-6 flex items-center gap-2">
+                <BarChartIcon className="h-5 w-5 text-[#5C7F67]" />
+                ผลการดำเนินงานแยกรายหมู่บ้าน
+              </h2>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E6E4DD" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#7A7E74' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#7A7E74' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip 
+                      cursor={{ fill: '#F4F5F0' }}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #E6E4DD', fontSize: '12px', fontWeight: 'bold' }}
+                    />
+                    <Bar dataKey="count" name="จำนวน (หลังคาเรือน)" radius={[4, 4, 0, 0]}>
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.count > 0 ? '#5C7F67' : '#D6D3C9'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Filters Section */}
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD]">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[15px] font-bold text-[#3A4D3F] flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-[#5C7F67]" />
+                  ตัวกรองข้อมูล
+                </h2>
+                <button
+                  onClick={() => {
+                    setFilterVillage('');
+                    setFilterCollector('');
+                    setFilterHouseNumber('');
+                  }}
+                  className="text-[11px] text-[#7A7E74] hover:text-[#5C7F67] font-bold underline"
+                >
+                  ล้างตัวกรอง
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">หมู่บ้าน</label>
+                  <select
+                    value={filterVillage}
+                    onChange={(e) => setFilterVillage(e.target.value)}
+                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow"
+                  >
+                    <option value="">ทั้งหมด</option>
+                    {VILLAGES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">อสม.ที่รับผิดชอบ</label>
+                  <select
+                    value={filterCollector}
+                    onChange={(e) => setFilterCollector(e.target.value)}
+                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow disabled:opacity-50"
+                    disabled={availableCollectors.length === 0}
+                  >
+                    <option value="">ทั้งหมด</option>
+                    {availableCollectors.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">บ้านเลขที่</label>
+                  <select
+                    value={filterHouseNumber}
+                    onChange={(e) => setFilterHouseNumber(e.target.value)}
+                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow disabled:opacity-50"
+                    disabled={availableHouseNumbers.length === 0}
+                  >
+                    <option value="">ทั้งหมด</option>
+                    {availableHouseNumbers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD]">
               <h2 className="text-lg font-bold text-[#3A4D3F] flex items-center gap-2">
                 <span className="w-2 h-6 bg-[#A3B18A] rounded-full"></span>
-                ข้อมูลทั้งหมด ({records.length})
+                ข้อมูลที่ค้นพบ ({filteredRecords.length})
               </h2>
               <button
                 onClick={exportToCSV}
-                disabled={records.length === 0}
+                disabled={filteredRecords.length === 0}
                 className="inline-flex items-center px-4 py-2 bg-white border border-[#5C7F67] text-[#5C7F67] rounded-full text-[11px] font-bold hover:bg-[#F4F5F0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors uppercase tracking-wider shadow-sm"
               >
                 <Download className="-ml-0.5 mr-1.5 h-3.5 w-3.5" />
-                Export CSV
+                Export CSV (ที่กรอง)
               </button>
             </div>
 
-            {records.length === 0 ? (
+            {filteredRecords.length === 0 ? (
               <div className="bg-white rounded-[2rem] shadow-sm border border-[#E6E4DD] p-12 text-center text-[#7A7E74]">
                 <MapPin className="mx-auto h-12 w-12 text-[#D6D3C9] mb-4" />
-                <p className="font-medium">ยังไม่มีข้อมูลที่ถูกบันทึก</p>
-                <button 
-                  onClick={() => setActiveTab('form')}
-                  className="mt-5 text-[#5C7F67] hover:text-[#4A6753] font-bold text-sm bg-[#F9F9F5] px-6 py-2 rounded-full border border-[#E6E4DD]"
-                >
-                  เริ่มบันทึกข้อมูลแรก
-                </button>
+                <p className="font-medium">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {records.map((record, idx) => (
-                  <div key={record.id} className="flex flex-col bg-white rounded-2xl border border-[#E6E4DD] p-5 hover:shadow-sm transition-all relative overflow-hidden group">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <span className="inline-block px-2.5 py-1 rounded-full bg-[#A3B18A]/20 text-[#3A4D3F] text-[10px] font-bold mb-2 tracking-wide">
-                          {record.village}
-                        </span>
-                        <h3 className="text-[15px] font-bold text-[#3A4D3F]">บ้านเลขที่ {record.houseNumber}</h3>
-                        {record.houseRegistrationNumber && (
-                          <p className="text-[#7A7E74] text-[13px] font-medium mt-1">เลขทะเบียน: <span className="text-[#3A4D3F]">{record.houseRegistrationNumber}</span></p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleEdit(record)}
-                          className="text-[#5C7F67] hover:text-[#4A6753] p-2 rounded-xl hover:bg-[#5C7F67]/10 transition-colors"
-                          title="แก้ไขข้อมูล"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteRecord(record)}
-                          className="text-[#7A7E74] hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-colors"
-                          title="ลบข้อมูล"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-[13px] text-[#7A7E74] mt-2">
-                      <p><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">เจ้าบ้าน:</span> {record.headOfHousehold}</p>
-                      <p><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">สมาชิก:</span> <span className="font-medium text-[#3A4D3F]">{record.memberCount}</span> คน</p>
-                      {record.collectorName && (
-                        <p className="sm:col-span-2"><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">อสม./ผู้เก็บข้อมูล:</span> <span className="text-[#3A4D3F]">{record.collectorName}</span></p>
-                      )}
-                      <div className="sm:col-span-2 flex items-center gap-2 mt-2 text-[11px] font-mono bg-[#F9F9F5] p-2.5 rounded-xl border border-[#E6E4DD]">
-                        <div className="bg-[#A3B18A]/20 p-1 rounded-md text-[#5C7F67]">
-                          <MapPin className="h-3 w-3 shrink-0" />
+              <div className="space-y-8">
+                {Object.keys(groupedRecords).sort().map(village => (
+                  <div key={village} className="space-y-3">
+                    <h3 className="text-[14px] font-bold text-[#5C7F67] px-2 flex items-center gap-2">
+                      {village} 
+                      <span className="bg-[#A3B18A]/20 text-[#3A4D3F] px-2 py-0.5 rounded-full text-[11px]">
+                        {groupedRecords[village].length} หลัง
+                      </span>
+                    </h3>
+                    {groupedRecords[village].map((record, idx) => (
+                      <div key={record.id} className="flex flex-col bg-white rounded-2xl border border-[#E6E4DD] p-5 hover:shadow-sm transition-all relative overflow-hidden group">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="text-[15px] font-bold text-[#3A4D3F]">บ้านเลขที่ {record.houseNumber}</h3>
+                            {record.houseRegistrationNumber && (
+                              <p className="text-[#7A7E74] text-[13px] font-medium mt-1">เลขทะเบียน: <span className="text-[#3A4D3F]">{record.houseRegistrationNumber}</span></p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEdit(record)}
+                              className="text-[#5C7F67] hover:text-[#4A6753] p-2 rounded-xl hover:bg-[#5C7F67]/10 transition-colors"
+                              title="แก้ไขข้อมูล"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteRecord(record)}
+                              className="text-[#7A7E74] hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-colors"
+                              title="ลบข้อมูล"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-[#3A4D3F] break-all">{record.latitude?.toFixed(6)}, {record.longitude?.toFixed(6)}</span>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-[13px] text-[#7A7E74] mt-2">
+                          <p><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">เจ้าบ้าน:</span> {record.headOfHousehold}</p>
+                          <p><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">สมาชิก:</span> <span className="font-medium text-[#3A4D3F]">{record.memberCount}</span> คน</p>
+                          {record.collectorName && (
+                            <p className="sm:col-span-2"><span className="text-[#A3A69F] font-medium text-[11px] uppercase tracking-wider mr-1">อสม./ผู้เก็บข้อมูล:</span> <span className="text-[#3A4D3F]">{record.collectorName}</span></p>
+                          )}
+                          <div className="sm:col-span-2 flex items-center gap-2 mt-2 text-[11px] font-mono bg-[#F9F9F5] p-2.5 rounded-xl border border-[#E6E4DD]">
+                            <div className="bg-[#A3B18A]/20 p-1 rounded-md text-[#5C7F67]">
+                              <MapPin className="h-3 w-3 shrink-0" />
+                            </div>
+                            <span className="text-[#3A4D3F] break-all">{record.latitude?.toFixed(6)}, {record.longitude?.toFixed(6)}</span>
+                          </div>
+                          {record.notes && (
+                            <p className="sm:col-span-2 mt-2 text-[12px] text-[#5C7F67] bg-[#F4F5F0] p-3 rounded-xl border border-dashed border-[#A3B18A] flex items-start gap-2 leading-relaxed">
+                              <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {record.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-[#E6E4DD] flex justify-between items-center text-[10px] text-[#A3A69F] font-medium">
+                          <span className="uppercase">Record #{records.length - records.indexOf(record)}</span>
+                          <span>บันทึกเมื่อ: {new Date(record.timestamp).toLocaleString('th-TH')}</span>
+                        </div>
                       </div>
-                      {record.notes && (
-                        <p className="sm:col-span-2 mt-2 text-[12px] text-[#5C7F67] bg-[#F4F5F0] p-3 rounded-xl border border-dashed border-[#A3B18A] flex items-start gap-2 leading-relaxed">
-                          <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {record.notes}
-                        </p>
-                      )}
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-[#E6E4DD] flex justify-between items-center text-[10px] text-[#A3A69F] font-medium">
-                      <span className="uppercase">Record #{records.length - idx}</span>
-                      <span>บันทึกเมื่อ: {new Date(record.timestamp).toLocaleString('th-TH')}</span>
-                    </div>
+                    ))}
                   </div>
                 ))}
               </div>

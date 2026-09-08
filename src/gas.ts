@@ -60,17 +60,17 @@ function processGASData(data: any): HouseholdRecord[] {
     const row = values[i];
     if (!row.id) continue; 
     records.push({
-      id: row.id,
-      timestamp: row.timestamp || '',
-      village: row.village || '',
-      houseNumber: row.houseNumber || '',
-      houseRegistrationNumber: row.houseRegistrationNumber || '',
-      headOfHousehold: row.headOfHousehold || '',
+      id: String(row.id),
+      timestamp: row.timestamp ? String(row.timestamp) : '',
+      village: row.village ? String(row.village) : '',
+      houseNumber: row.houseNumber ? String(row.houseNumber) : '',
+      houseRegistrationNumber: row.houseRegistrationNumber ? String(row.houseRegistrationNumber) : '',
+      headOfHousehold: row.headOfHousehold ? String(row.headOfHousehold) : '',
       memberCount: row.memberCount ? Number(row.memberCount) : '',
       latitude: row.latitude ? Number(row.latitude) : null,
       longitude: row.longitude ? Number(row.longitude) : null,
-      notes: row.notes || '',
-      collectorName: row.collectorName || '',
+      notes: row.notes ? String(row.notes) : '',
+      collectorName: row.collectorName ? String(row.collectorName) : '',
     });
   }
   return records.reverse();
