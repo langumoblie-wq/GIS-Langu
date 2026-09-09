@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter } from 'lucide-react';
+import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { HouseholdRecord, VILLAGES } from './types';
 import { fetchRecordsFromGAS, addRecordToGAS, deleteRecordFromGAS, updateRecordInGAS } from './gas';
@@ -15,7 +15,7 @@ export default function App() {
   });
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
-  const [activeTab, setActiveTab] = useState<'form' | 'list'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'incomplete'>('form');
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [gasUrl, setGasUrl] = useState(import.meta.env.VITE_GAS_WEB_APP_URL || 'https://script.google.com/macros/s/AKfycbxCGURRM4ltH4rvZDKNTZ6bOZOwCfZgU_U1ozFr_QRFLDw6I6NK-jfZ6r1E0IlUVA/exec');
@@ -301,6 +301,18 @@ export default function App() {
     }));
   }, [records]);
 
+  const incompleteRecords = useMemo(() => {
+    return records.filter(r => !r.latitude || !r.longitude || !r.houseRegistrationNumber || r.houseRegistrationNumber.trim() === '');
+  }, [records]);
+
+  const groupedIncompleteRecords = useMemo(() => {
+    return incompleteRecords.reduce((acc, record) => {
+      if (!acc[record.village]) acc[record.village] = [];
+      acc[record.village].push(record);
+      return acc;
+    }, {} as Record<string, HouseholdRecord[]>);
+  }, [incompleteRecords]);
+
   return (
     <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#2D302E]">
       <Modal
@@ -338,19 +350,28 @@ export default function App() {
         </div>
         
         {/* Navigation Tabs */}
-        <div className="flex border-t border-[#E6E4DD]">
+        <div className="flex border-t border-[#E6E4DD] overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => setActiveTab('form')}
-            className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'form' ? 'bg-[#F9F9F5] text-[#5C7F67] border-b-2 border-[#5C7F67]' : 'bg-white text-[#7A7E74] hover:bg-[#F9F9F5]'}`}
+            className={`flex-1 py-3 px-4 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === 'form' ? 'bg-[#F9F9F5] text-[#5C7F67] border-b-2 border-[#5C7F67]' : 'bg-white text-[#7A7E74] hover:bg-[#F9F9F5]'}`}
           >
             บันทึกข้อมูล
           </button>
           <button 
             onClick={() => setActiveTab('list')}
-            className={`flex-1 py-3 text-sm font-bold transition-colors flex justify-center items-center gap-2 ${activeTab === 'list' ? 'bg-[#F9F9F5] text-[#5C7F67] border-b-2 border-[#5C7F67]' : 'bg-white text-[#7A7E74] hover:bg-[#F9F9F5]'}`}
+            className={`flex-1 py-3 px-4 text-sm font-bold transition-colors flex justify-center items-center gap-2 whitespace-nowrap ${activeTab === 'list' ? 'bg-[#F9F9F5] text-[#5C7F67] border-b-2 border-[#5C7F67]' : 'bg-white text-[#7A7E74] hover:bg-[#F9F9F5]'}`}
           >
             รายการที่บันทึก
             <span className="bg-[#5C7F67] text-white text-[10px] py-0.5 px-2 rounded-full">{records.length}</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('incomplete')}
+            className={`flex-1 py-3 px-4 text-sm font-bold transition-colors flex justify-center items-center gap-2 whitespace-nowrap ${activeTab === 'incomplete' ? 'bg-[#F9F9F5] text-[#E07A5F] border-b-2 border-[#E07A5F]' : 'bg-white text-[#7A7E74] hover:bg-[#F9F9F5]'}`}
+          >
+            ต้องติดตาม
+            {incompleteRecords.length > 0 && (
+              <span className="bg-[#E07A5F] text-white text-[10px] py-0.5 px-2 rounded-full">{incompleteRecords.length}</span>
+            )}
           </button>
         </div>
       </header>
@@ -585,7 +606,7 @@ export default function App() {
               </div>
             </form>
           </div>
-        ) : (
+        ) : activeTab === 'list' ? (
           /* List Section */
           <div className="space-y-6 relative">
             {isSyncing && (
@@ -755,6 +776,88 @@ export default function App() {
                         <div className="mt-4 pt-3 border-t border-[#E6E4DD] flex justify-between items-center text-[10px] text-[#A3A69F] font-medium">
                           <span className="uppercase">Record #{records.length - records.indexOf(record)}</span>
                           <span>บันทึกเมื่อ: {new Date(record.timestamp).toLocaleString('th-TH')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Incomplete Records Section */
+          <div className="space-y-6 relative">
+            {isSyncing && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[2rem]">
+                <Loader2 className="w-8 h-8 text-[#5C7F67] animate-spin" />
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD] gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#E07A5F] flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  รายชื่อบ้านที่ต้องติดตามข้อมูล
+                </h2>
+                <p className="text-[#7A7E74] text-xs mt-1">บ้านที่ยังขาดพิกัด GPS หรือ ขาดเลขทะเบียนบ้าน</p>
+              </div>
+              <div className="bg-[#FDFCF8] border border-[#E07A5F]/30 text-[#E07A5F] font-bold px-4 py-2 rounded-xl text-sm">
+                ต้องติดตามทั้งหมด {incompleteRecords.length} หลัง
+              </div>
+            </div>
+
+            {incompleteRecords.length === 0 ? (
+              <div className="bg-white rounded-[2rem] shadow-sm border border-[#E6E4DD] p-12 text-center text-[#7A7E74]">
+                <div className="mx-auto h-16 w-16 bg-[#5C7F67]/10 rounded-full flex items-center justify-center mb-4">
+                  <Save className="h-8 w-8 text-[#5C7F67]" />
+                </div>
+                <p className="font-medium text-[#3A4D3F]">ยอดเยี่ยม!</p>
+                <p className="text-sm mt-1">ข้อมูลทุกหลังคาเรือนสมบูรณ์ครบถ้วนแล้ว</p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {Object.keys(groupedIncompleteRecords).sort().map(village => (
+                  <div key={village} className="space-y-3">
+                    <h3 className="text-[14px] font-bold text-[#E07A5F] px-2 flex items-center gap-2">
+                      {village} 
+                      <span className="bg-[#E07A5F]/10 text-[#E07A5F] px-2 py-0.5 rounded-full text-[11px]">
+                        {groupedIncompleteRecords[village].length} หลัง
+                      </span>
+                    </h3>
+                    {groupedIncompleteRecords[village].map((record) => (
+                      <div key={record.id} className="flex flex-col bg-white rounded-2xl border border-[#E6E4DD] p-5 hover:border-[#E07A5F]/50 transition-all relative overflow-hidden group shadow-sm">
+                        
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-3">
+                          <div className="flex-1">
+                            <h3 className="text-[16px] font-bold text-[#3A4D3F]">บ้านเลขที่ {record.houseNumber}</h3>
+                            <p className="text-[#7A7E74] text-[13px] font-medium mt-1"><span className="text-[#A3A69F]">เจ้าบ้าน:</span> {record.headOfHousehold}</p>
+                            {record.collectorName && (
+                              <p className="text-[#7A7E74] text-[13px] font-medium"><span className="text-[#A3A69F]">อสม.ผู้รับผิดชอบ:</span> <span className="text-[#3A4D3F]">{record.collectorName}</span></p>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
+                            {(!record.latitude || !record.longitude) && (
+                              <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-100 px-2 py-1 rounded-lg text-[11px] font-bold">
+                                <MapPin className="h-3 w-3" /> ขาดพิกัด GPS
+                              </span>
+                            )}
+                            {(!record.houseRegistrationNumber || record.houseRegistrationNumber.trim() === '') && (
+                              <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-600 border border-orange-100 px-2 py-1 rounded-lg text-[11px] font-bold">
+                                <FileText className="h-3 w-3" /> ขาดเลขทะเบียนบ้าน
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-[#E6E4DD]">
+                          <button
+                            onClick={() => handleEdit(record)}
+                            className="w-full flex items-center justify-center gap-2 bg-[#F9F9F5] hover:bg-[#5C7F67] text-[#5C7F67] hover:text-white border border-[#E6E4DD] hover:border-[#5C7F67] py-2.5 rounded-xl text-[13px] font-bold transition-colors"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                            อัปเดตข้อมูล
+                          </button>
                         </div>
                       </div>
                     ))}
