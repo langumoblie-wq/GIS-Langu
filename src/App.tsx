@@ -113,22 +113,22 @@ export default function App() {
       setIsConfiguring(true);
       return;
     }
-    if (!formData.houseNumber || !formData.headOfHousehold || formData.latitude === undefined) {
-      showAlert('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบถ้วน และกดดึงพิกัดตำแหน่ง');
+    if (!formData.houseNumber || !formData.headOfHousehold || formData.latitude === undefined || formData.latitude === '' || formData.latitude === null) {
+      showAlert('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบถ้วน และระบุพิกัดตำแหน่ง (กดดึงพิกัด หรือกรอกเอง)');
       return;
     }
 
     const newRecord: HouseholdRecord = {
       id: editingId || crypto.randomUUID(),
-      houseNumber: formData.houseNumber || '',
-      houseRegistrationNumber: formData.houseRegistrationNumber || '',
-      headOfHousehold: formData.headOfHousehold || '',
-      village: formData.village || VILLAGES[0],
-      latitude: formData.latitude || null,
-      longitude: formData.longitude || null,
+      houseNumber: formData.houseNumber?.trim() || '',
+      houseRegistrationNumber: formData.houseRegistrationNumber?.trim() || '',
+      headOfHousehold: formData.headOfHousehold?.trim() || '',
+      village: formData.village?.trim() || VILLAGES[0],
+      latitude: formData.latitude !== undefined && formData.latitude !== null && formData.latitude !== '' ? Number(formData.latitude) : null,
+      longitude: formData.longitude !== undefined && formData.longitude !== null && formData.longitude !== '' ? Number(formData.longitude) : null,
       memberCount: formData.memberCount === '' ? 0 : Number(formData.memberCount),
-      notes: formData.notes || '',
-      collectorName: formData.collectorName || '',
+      notes: formData.notes?.trim() || '',
+      collectorName: formData.collectorName?.trim() || '',
       timestamp: editingId ? (records.find(r => r.id === editingId)?.timestamp || new Date().toISOString()) : new Date().toISOString(),
     };
 
@@ -270,6 +270,16 @@ export default function App() {
     );
     return Array.from(houses).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [records, filterVillage]);
+
+  // Data processing for the form (autocomplete)
+  const formAvailableCollectors = useMemo(() => {
+    const colls = new Set(records
+      .filter(r => r.village === formData.village)
+      .map(r => r.collectorName)
+      .filter(Boolean)
+    );
+    return Array.from(colls).sort();
+  }, [records, formData.village]);
 
   // When village filter changes, reset dependent filters if the selected value is no longer available
   useEffect(() => {
@@ -510,12 +520,18 @@ export default function App() {
                     type="text"
                     id="collectorName"
                     name="collectorName"
+                    list="collector-list"
                     value={formData.collectorName || ''}
                     onChange={handleInputChange}
                     placeholder="ชื่อผู้เก็บข้อมูล"
                     required
                     className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow"
                   />
+                  <datalist id="collector-list">
+                    {formAvailableCollectors.map(c => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -551,16 +567,30 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="block text-[10px] font-bold text-[#7A7E74] uppercase mb-1">ละติจูด (Lat)</span>
-                    <div className="w-full bg-white border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-[13px] text-[#3A4D3F] font-mono shadow-sm">
-                      {formData.latitude ? formData.latitude.toFixed(6) : '-'}
-                    </div>
+                    <label htmlFor="latitude" className="block text-[10px] font-bold text-[#7A7E74] uppercase mb-1">ละติจูด (Lat)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      id="latitude"
+                      name="latitude"
+                      value={formData.latitude === undefined || formData.latitude === null ? '' : formData.latitude}
+                      onChange={handleInputChange}
+                      placeholder="เช่น 13.7563"
+                      className="w-full bg-white border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-[13px] text-[#3A4D3F] font-mono shadow-sm focus:outline-none focus:border-[#5C7F67]"
+                    />
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-[#7A7E74] uppercase mb-1">ลองจิจูด (Lng)</span>
-                    <div className="w-full bg-white border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-[13px] text-[#3A4D3F] font-mono shadow-sm">
-                      {formData.longitude ? formData.longitude.toFixed(6) : '-'}
-                    </div>
+                    <label htmlFor="longitude" className="block text-[10px] font-bold text-[#7A7E74] uppercase mb-1">ลองจิจูด (Lng)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      id="longitude"
+                      name="longitude"
+                      value={formData.longitude === undefined || formData.longitude === null ? '' : formData.longitude}
+                      onChange={handleInputChange}
+                      placeholder="เช่น 100.5018"
+                      className="w-full bg-white border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-[13px] text-[#3A4D3F] font-mono shadow-sm focus:outline-none focus:border-[#5C7F67]"
+                    />
                   </div>
                 </div>
               </div>
