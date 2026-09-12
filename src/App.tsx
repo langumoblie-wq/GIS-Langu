@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter, AlertTriangle } from 'lucide-react';
+import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter, AlertTriangle, Share2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { HouseholdRecord, VILLAGES } from './types';
 import { fetchRecordsFromGAS, addRecordToGAS, deleteRecordFromGAS, updateRecordInGAS } from './gas';
 import { Modal } from './components/Modal';
+import { MapModule } from './components/MapModule';
 
 export default function App() {
   const [records, setRecords] = useState<HouseholdRecord[]>([]);
@@ -208,6 +209,35 @@ export default function App() {
         setIsSyncing(false);
       }
     });
+  };
+
+  const handleShareLocation = async (record: HouseholdRecord) => {
+    if (!record.latitude || !record.longitude) {
+      showAlert('แจ้งเตือน', 'บ้านหลังนี้ยังไม่มีข้อมูลพิกัด GPS');
+      return;
+    }
+
+    const mapsUrl = `https://www.google.com/maps?q=${record.latitude},${record.longitude}`;
+    const shareText = `พิกัดบ้านเลขที่ ${record.houseNumber} ${record.village} (เจ้าบ้าน: ${record.headOfHousehold})\nผู้เก็บข้อมูล: ${record.collectorName}\n${mapsUrl}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `พิกัดบ้านเลขที่ ${record.houseNumber}`,
+          text: shareText,
+          url: mapsUrl
+        });
+      } catch (error) {
+        console.log('Error sharing', error);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        showAlert('สำเร็จ', 'คัดลอกลิงก์แผนที่ลงในคลิปบอร์ดเรียบร้อยแล้ว', 'success');
+      } catch (err) {
+        showAlert('แจ้งเตือน', 'ไม่สามารถคัดลอกลิงก์ได้ กรุณาคัดลอกพิกัดด้วยตัวเอง');
+      }
+    }
   };
 
   const exportToCSV = () => {
@@ -671,6 +701,15 @@ export default function App() {
               </div>
             </div>
 
+            {/* Map Section */}
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD]">
+              <h2 className="text-lg font-bold text-[#3A4D3F] mb-4 flex items-center gap-2">
+                <Map className="h-5 w-5 text-[#5C7F67]" />
+                แผนที่พิกัดหลังคาเรือน
+              </h2>
+              <MapModule records={filteredRecords} />
+            </div>
+
             {/* Filters Section */}
             <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD]">
               <div className="flex items-center justify-between mb-4">
@@ -768,6 +807,13 @@ export default function App() {
                             )}
                           </div>
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleShareLocation(record)}
+                              className="text-[#5C7F67] hover:text-[#4A6753] p-2 rounded-xl hover:bg-[#5C7F67]/10 transition-colors"
+                              title="แชร์พิกัด"
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </button>
                             <button
                               onClick={() => handleEdit(record)}
                               className="text-[#5C7F67] hover:text-[#4A6753] p-2 rounded-xl hover:bg-[#5C7F67]/10 transition-colors"
