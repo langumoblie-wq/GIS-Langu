@@ -51,13 +51,28 @@ export default function App() {
   }, [isConfiguring, gasUrl]);
 
   const loadData = async () => {
+    // 1. Load from cache first for instant display
+    const cachedData = localStorage.getItem('household_records_cache');
+    if (cachedData) {
+      try {
+        setRecords(JSON.parse(cachedData));
+      } catch (e) {
+        console.error("Cache parsing error", e);
+      }
+    }
+
+    // 2. Fetch fresh data in the background
     setIsSyncing(true);
     try {
       const data = await fetchRecordsFromGAS(gasUrl);
       setRecords(data);
+      // Save fresh data to cache
+      localStorage.setItem('household_records_cache', JSON.stringify(data));
     } catch (err: any) {
       console.error(err);
-      showAlert('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถดึงข้อมูลได้ โปรดตรวจสอบ Web App URL หรือการตั้งค่า CORS');
+      if (!cachedData) {
+        showAlert('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถดึงข้อมูลได้ โปรดตรวจสอบ Web App URL หรือการตั้งค่า CORS');
+      }
     } finally {
       setIsSyncing(false);
     }
