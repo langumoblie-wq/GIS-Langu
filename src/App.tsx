@@ -15,6 +15,7 @@ export default function App() {
     memberCount: '',
     collectorName: '',
     bedriddenCount: 0,
+    homeboundCount: 0,
     pregnantOver36WeeksCount: 0,
     elderlyCount: 0,
     diabetesCount: 0,
@@ -158,6 +159,7 @@ export default function App() {
       collectorName: formData.collectorName?.trim() || '',
       timestamp: editingId ? (records.find(r => r.id === editingId)?.timestamp || new Date().toISOString()) : new Date().toISOString(),
       bedriddenCount: Math.max(0, Number(formData.bedriddenCount) || 0),
+      homeboundCount: Math.max(0, Number(formData.homeboundCount) || 0),
       pregnantOver36WeeksCount: Math.max(0, Number(formData.pregnantOver36WeeksCount) || 0),
       elderlyCount: Math.max(0, Number(formData.elderlyCount) || 0),
       diabetesCount: Math.max(0, Number(formData.diabetesCount) || 0),
@@ -185,6 +187,7 @@ export default function App() {
         latitude: undefined,
         longitude: undefined,
         bedriddenCount: 0,
+        homeboundCount: 0,
         pregnantOver36WeeksCount: 0,
         elderlyCount: 0,
         diabetesCount: 0,
@@ -212,14 +215,15 @@ export default function App() {
       latitude: record.latitude || undefined,
       longitude: record.longitude || undefined,
       bedriddenCount: record.bedriddenCount || 0,
+      homeboundCount: record.homeboundCount || 0,
       pregnantOver36WeeksCount: record.pregnantOver36WeeksCount || 0,
       elderlyCount: record.elderlyCount || 0,
       diabetesCount: record.diabetesCount || 0,
       hypertensionCount: record.hypertensionCount || 0,
       disabledCount: record.disabledCount || 0,
     });
-    setEditingId(record.id);
     setActiveTab('form');
+    setEditingId(record.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -235,6 +239,7 @@ export default function App() {
       latitude: undefined,
       longitude: undefined,
       bedriddenCount: 0,
+      homeboundCount: 0,
       pregnantOver36WeeksCount: 0,
       elderlyCount: 0,
       diabetesCount: 0,
@@ -305,10 +310,11 @@ export default function App() {
       'ชื่อเจ้าบ้าน',
       'จำนวนสมาชิก',
       'ผู้ป่วยติดเตียง',
+      'ผู้ป่วยติดบ้าน',
       'หญิงตั้งครรภ์>36สัปดาห์',
       'ผู้สูงอายุ',
-      'เบาหวาน (NCDs)',
-      'ความดันโลหิตสูง (NCDs)',
+      'เบาหวาน (DM)',
+      'ความดันโลหิตสูง (HT)',
       'ผู้พิการ',
       'ละติจูด (Lat)',
       'ลองจิจูด (Lng)',
@@ -333,6 +339,7 @@ export default function App() {
           `"${r.headOfHousehold}"`,
           r.memberCount,
           r.bedriddenCount || 0,
+          r.homeboundCount || 0,
           r.pregnantOver36WeeksCount || 0,
           r.elderlyCount || 0,
           r.diabetesCount || 0,
@@ -438,6 +445,7 @@ export default function App() {
       if (filterVulnerable === 'ANY') {
         matchVulnerable = Boolean(
           (r.bedriddenCount && r.bedriddenCount > 0) ||
+          (r.homeboundCount && r.homeboundCount > 0) ||
           (r.pregnantOver36WeeksCount && r.pregnantOver36WeeksCount > 0) ||
           (r.elderlyCount && r.elderlyCount > 0) ||
           (r.diabetesCount && r.diabetesCount > 0) ||
@@ -446,6 +454,8 @@ export default function App() {
         );
       } else if (filterVulnerable === 'BEDRIDDEN') {
         matchVulnerable = Boolean(r.bedriddenCount && r.bedriddenCount > 0);
+      } else if (filterVulnerable === 'HOMEBOUND') {
+        matchVulnerable = Boolean(r.homeboundCount && r.homeboundCount > 0);
       } else if (filterVulnerable === 'PREGNANT') {
         matchVulnerable = Boolean(r.pregnantOver36WeeksCount && r.pregnantOver36WeeksCount > 0);
       } else if (filterVulnerable === 'ELDERLY') {
@@ -465,6 +475,7 @@ export default function App() {
   const vulnerableStats = useMemo(() => {
     return filteredRecords.reduce((acc, r) => {
       acc.bedridden += r.bedriddenCount || 0;
+      acc.homebound += r.homeboundCount || 0;
       acc.pregnant += r.pregnantOver36WeeksCount || 0;
       acc.elderly += r.elderlyCount || 0;
       acc.diabetes += r.diabetesCount || 0;
@@ -472,6 +483,7 @@ export default function App() {
       acc.disabled += r.disabledCount || 0;
       if (
         (r.bedriddenCount && r.bedriddenCount > 0) ||
+        (r.homeboundCount && r.homeboundCount > 0) ||
         (r.pregnantOver36WeeksCount && r.pregnantOver36WeeksCount > 0) ||
         (r.elderlyCount && r.elderlyCount > 0) ||
         (r.diabetesCount && r.diabetesCount > 0) ||
@@ -481,7 +493,7 @@ export default function App() {
         acc.totalHouseholds += 1;
       }
       return acc;
-    }, { bedridden: 0, pregnant: 0, elderly: 0, diabetes: 0, hypertension: 0, disabled: 0, totalHouseholds: 0 });
+    }, { bedridden: 0, homebound: 0, pregnant: 0, elderly: 0, diabetes: 0, hypertension: 0, disabled: 0, totalHouseholds: 0 });
   }, [filteredRecords]);
 
   const groupedRecords = useMemo(() => {
@@ -755,7 +767,7 @@ export default function App() {
                 />
               </div>
 
-              {/* กลุ่มเปราะบางในครัวเรือน */}
+              {/* ข้อมูลกลุ่มเปราะบางในครัวเรือน */}
               <div className="bg-[#FAF9F5] border border-[#E6E4DD] rounded-2xl p-4 sm:p-5 space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-[#E6E4DD]">
                   <div>
@@ -763,23 +775,23 @@ export default function App() {
                       <ShieldAlert className="h-4 w-4 text-[#E07A5F]" />
                       ข้อมูลกลุ่มเปราะบางในครัวเรือน
                     </h3>
-                    <p className="text-[11px] text-[#7A7E74] mt-0.5">ระบุจำนวนคนในแต่ละกลุ่ม (กดปุ่ม + / - หรือกรอกตัวเลข หากไม่มีให้เป็น 0)</p>
+                    <p className="text-[11px] text-[#7A7E74] mt-0.5">ระบุจำนวนคนในแต่ละกลุ่ม พร้อมปุ่ม + / - และช่องกรอก (หากไม่มีให้เว้นว่างหรือเป็น 0)</p>
                   </div>
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {/* 1. ผู้ป่วยติดเตียง */}
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
-                    <div className="flex items-center gap-3 pr-2">
+                  <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                         <Activity className="h-4 w-4" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-xs font-bold text-[#3A4D3F] block">1. ผู้ป่วยติดเตียง</span>
-                        <span className="text-[10px] text-[#7A7E74]">ผู้ป่วยช่วยเหลือตนเองไม่ได้</span>
+                        <span className="text-[10px] text-[#7A7E74] block leading-tight">ผู้ป่วยที่ไม่สามารถช่วยเหลือตัวเองได้ ต้องนอนบนเตียงตลอดเวลา หรือมีภาวะพึ่งพิงสูง</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, bedriddenCount: Math.max(0, (Number(prev.bedriddenCount) || 0) - 1) }))}
@@ -813,18 +825,63 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 2. หญิงตั้งครรภ์ อายุครรภ์มากกว่า 36 สัปดาห์ */}
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
-                    <div className="flex items-center gap-3 pr-2">
+                  {/* 2. ผู้ป่วยติดบ้าน */}
+                  <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                        <Home className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[#3A4D3F] block">2. ผู้ป่วยติดบ้าน</span>
+                        <span className="text-[10px] text-[#7A7E74] block leading-tight">ผู้ป่วยที่พอช่วยเหลือตนเองได้บ้าง แต่ไม่สามารถเดินทางออกจากบ้านได้ หรือต้องมีผู้ดูแลช่วยเหลือ</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, homeboundCount: Math.max(0, (Number(prev.homeboundCount) || 0) - 1) }))}
+                        disabled={!formData.homeboundCount || Number(formData.homeboundCount) <= 0}
+                        className="w-8 h-8 rounded-lg bg-[#F4F5F0] hover:bg-[#E6E4DD] disabled:opacity-30 disabled:hover:bg-[#F4F5F0] flex items-center justify-center text-[#3A4D3F] font-bold text-sm transition-colors"
+                        title="ลดจำนวน"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        id="homeboundCount"
+                        name="homeboundCount"
+                        value={formData.homeboundCount ? formData.homeboundCount : ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0);
+                          setFormData(prev => ({ ...prev, homeboundCount: val }));
+                        }}
+                        placeholder="0"
+                        className="w-12 h-8 text-center bg-[#F9F9F5] border border-[#E6E4DD] rounded-lg text-xs font-bold text-[#3A4D3F] focus:outline-none focus:border-[#5C7F67]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, homeboundCount: (Number(prev.homeboundCount) || 0) + 1 }))}
+                        className="w-8 h-8 rounded-lg bg-[#5C7F67] hover:bg-[#4A6753] text-white flex items-center justify-center font-bold text-sm transition-colors shadow-xs"
+                        title="เพิ่มจำนวน"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. หญิงตั้งครรภ์ อายุครรภ์มากกว่า 36 สัปดาห์ */}
+                  <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center shrink-0">
                         <Baby className="h-4 w-4" />
                       </div>
-                      <div>
-                        <span className="text-xs font-bold text-[#3A4D3F] block">2. หญิงตั้งครรภ์ (อายุครรภ์ &gt; 36 สัปดาห์)</span>
-                        <span className="text-[10px] text-[#7A7E74]">ระยะใกล้คลอด เฝ้าระวังส่งต่อคลอด</span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[#3A4D3F] block">3. หญิงตั้งครรภ์ อายุครรภ์มากกว่า 36 สัปดาห์</span>
+                        <span className="text-[10px] text-[#7A7E74] block leading-tight">ระบุจำนวนคน เพื่อเฝ้าระวังระยะใกล้คลอดและส่งต่อ</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, pregnantOver36WeeksCount: Math.max(0, (Number(prev.pregnantOver36WeeksCount) || 0) - 1) }))}
@@ -858,18 +915,18 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 3. ผู้สูงอายุ */}
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
-                    <div className="flex items-center gap-3 pr-2">
-                      <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                  {/* 4. ผู้สูงอายุ (อายุ 60 ปีขึ้นไป) */}
+                  <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center shrink-0">
                         <Users className="h-4 w-4" />
                       </div>
-                      <div>
-                        <span className="text-xs font-bold text-[#3A4D3F] block">3. ผู้สูงอายุ</span>
-                        <span className="text-[10px] text-[#7A7E74]">อายุ 60 ปีขึ้นไป</span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[#3A4D3F] block">4. ผู้สูงอายุ (อายุ 60 ปีขึ้นไป)</span>
+                        <span className="text-[10px] text-[#7A7E74] block leading-tight">ผู้สูงอายุในครัวเรือนที่มีอายุ 60 ปีบริบูรณ์ขึ้นไป</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, elderlyCount: Math.max(0, (Number(prev.elderlyCount) || 0) - 1) }))}
@@ -903,25 +960,25 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 4. ผู้ป่วยโรคไม่ติดต่อเรื้อรัง (NCDs) */}
-                  <div className="pt-2">
+                  {/* 5. ผู้ป่วยโรคไม่ติดต่อเรื้อรัง (NCDs) */}
+                  <div className="pt-1">
                     <p className="text-[11px] font-bold text-[#5C7F67] uppercase tracking-wider mb-2 ml-1 flex items-center gap-1.5">
                       <Heart className="h-3.5 w-3.5 text-[#5C7F67]" />
-                      4. ผู้ป่วยโรคไม่ติดต่อเรื้อรัง (NCDs)
+                      5. ผู้ป่วยโรคไม่ติดต่อเรื้อรัง (NCDs)
                     </p>
-                    <div className="space-y-2">
-                      {/* โรคเบาหวาน */}
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
-                        <div className="flex items-center gap-3 pr-2">
+                    <div className="space-y-2.5">
+                      {/* โรคเบาหวาน (DM) */}
+                      <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                        <div className="flex items-center gap-3 pr-2 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                             <Heart className="h-4 w-4" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <span className="text-xs font-bold text-[#3A4D3F] block">โรคเบาหวาน (DM)</span>
-                            <span className="text-[10px] text-[#7A7E74]">ผู้ป่วยเบาหวานในครัวเรือน</span>
+                            <span className="text-[10px] text-[#7A7E74] block leading-tight">ผู้ป่วยโรคเบาหวานในครัวเรือน (ระบุจำนวนคน)</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
                           <button
                             type="button"
                             onClick={() => setFormData(prev => ({ ...prev, diabetesCount: Math.max(0, (Number(prev.diabetesCount) || 0) - 1) }))}
@@ -955,18 +1012,18 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* โรคความดันโลหิตสูง */}
-                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
-                        <div className="flex items-center gap-3 pr-2">
+                      {/* โรคความดันโลหิตสูง (HT) */}
+                      <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                        <div className="flex items-center gap-3 pr-2 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                             <Activity className="h-4 w-4" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <span className="text-xs font-bold text-[#3A4D3F] block">โรคความดันโลหิตสูง (HT)</span>
-                            <span className="text-[10px] text-[#7A7E74]">ผู้ป่วยความดันโลหิตสูงในครัวเรือน</span>
+                            <span className="text-[10px] text-[#7A7E74] block leading-tight">ผู้ป่วยโรคความดันโลหิตสูงในครัวเรือน (ระบุจำนวนคน)</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
                           <button
                             type="button"
                             onClick={() => setFormData(prev => ({ ...prev, hypertensionCount: Math.max(0, (Number(prev.hypertensionCount) || 0) - 1) }))}
@@ -1002,18 +1059,18 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 5. ผู้พิการ */}
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
-                    <div className="flex items-center gap-3 pr-2">
+                  {/* 6. ผู้พิการ */}
+                  <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
                         <Accessibility className="h-4 w-4" />
                       </div>
-                      <div>
-                        <span className="text-xs font-bold text-[#3A4D3F] block">5. ผู้พิการ</span>
-                        <span className="text-[10px] text-[#7A7E74]">ผู้มีความบกพร่องทางการเคลื่อนไหว ร่างกาย หรือการสื่อสาร</span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[#3A4D3F] block">6. ผู้พิการ</span>
+                        <span className="text-[10px] text-[#7A7E74] block leading-tight">ผู้มีความบกพร่องทางการเคลื่อนไหว ร่างกาย หรือการสื่อสาร (ระบุจำนวนคน)</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, disabledCount: Math.max(0, (Number(prev.disabledCount) || 0) - 1) }))}
@@ -1352,12 +1409,13 @@ export default function App() {
                   >
                     <option value="">ทั้งหมด</option>
                     <option value="ANY">มีกลุ่มเปราะบาง (ใดก็ได้)</option>
-                    <option value="BEDRIDDEN">ผู้ป่วยติดเตียง</option>
-                    <option value="PREGNANT">หญิงตั้งครรภ์ &gt; 36 สัปดาห์</option>
-                    <option value="ELDERLY">ผู้สูงอายุ (60 ปีขึ้นไป)</option>
-                    <option value="DIABETES">ผู้ป่วยโรคเบาหวาน</option>
-                    <option value="HYPERTENSION">ผู้ป่วยโรคความดันโลหิตสูง</option>
-                    <option value="DISABLED">ผู้พิการ</option>
+                    <option value="BEDRIDDEN">1. ผู้ป่วยติดเตียง</option>
+                    <option value="HOMEBOUND">2. ผู้ป่วยติดบ้าน</option>
+                    <option value="PREGNANT">3. หญิงตั้งครรภ์ &gt; 36 สัปดาห์</option>
+                    <option value="ELDERLY">4. ผู้สูงอายุ (60 ปีขึ้นไป)</option>
+                    <option value="DIABETES">5. โรคเบาหวาน (DM)</option>
+                    <option value="HYPERTENSION">5. โรคความดันโลหิตสูง (HT)</option>
+                    <option value="DISABLED">6. ผู้พิการ</option>
                   </select>
                 </div>
               </div>
@@ -1374,12 +1432,18 @@ export default function App() {
                   มีกลุ่มเปราะบาง {vulnerableStats.totalHouseholds} หลังคาเรือน
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 <div className="bg-rose-50/70 border border-rose-100 p-2.5 rounded-xl">
                   <p className="text-[11px] font-bold text-rose-700 flex items-center gap-1">
                     <Activity className="h-3 w-3" /> ผู้ป่วยติดเตียง
                   </p>
                   <p className="text-lg font-bold text-rose-900 mt-1">{vulnerableStats.bedridden} <span className="text-xs font-normal text-rose-700">คน</span></p>
+                </div>
+                <div className="bg-amber-50/70 border border-amber-200/80 p-2.5 rounded-xl">
+                  <p className="text-[11px] font-bold text-amber-700 flex items-center gap-1">
+                    <Home className="h-3 w-3" /> ผู้ป่วยติดบ้าน
+                  </p>
+                  <p className="text-lg font-bold text-amber-900 mt-1">{vulnerableStats.homebound} <span className="text-xs font-normal text-amber-700">คน</span></p>
                 </div>
                 <div className="bg-pink-50/70 border border-pink-100 p-2.5 rounded-xl">
                   <p className="text-[11px] font-bold text-pink-700 flex items-center gap-1">
@@ -1486,6 +1550,7 @@ export default function App() {
                           )}
                           {Boolean(
                             (record.bedriddenCount && record.bedriddenCount > 0) ||
+                            (record.homeboundCount && record.homeboundCount > 0) ||
                             (record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) ||
                             (record.elderlyCount && record.elderlyCount > 0) ||
                             (record.diabetesCount && record.diabetesCount > 0) ||
@@ -1497,6 +1562,12 @@ export default function App() {
                                 <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
                                   <Activity className="h-3 w-3 shrink-0" />
                                   ผู้ป่วยติดเตียง {record.bedriddenCount} คน
+                                </span>
+                              )}
+                              {Boolean(record.homeboundCount && record.homeboundCount > 0) && (
+                                <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
+                                  <Home className="h-3 w-3 shrink-0" />
+                                  ผู้ป่วยติดบ้าน {record.homeboundCount} คน
                                 </span>
                               )}
                               {Boolean(record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) && (
@@ -1514,13 +1585,13 @@ export default function App() {
                               {Boolean(record.diabetesCount && record.diabetesCount > 0) && (
                                 <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
                                   <Heart className="h-3 w-3 shrink-0" />
-                                  เบาหวาน {record.diabetesCount} คน
+                                  เบาหวาน (DM) {record.diabetesCount} คน
                                 </span>
                               )}
                               {Boolean(record.hypertensionCount && record.hypertensionCount > 0) && (
                                 <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
                                   <Activity className="h-3 w-3 shrink-0" />
-                                  ความดันฯ {record.hypertensionCount} คน
+                                  ความดันฯ (HT) {record.hypertensionCount} คน
                                 </span>
                               )}
                               {Boolean(record.disabledCount && record.disabledCount > 0) && (
@@ -1606,6 +1677,7 @@ export default function App() {
                             )}
                             {Boolean(
                               (record.bedriddenCount && record.bedriddenCount > 0) ||
+                              (record.homeboundCount && record.homeboundCount > 0) ||
                               (record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) ||
                               (record.elderlyCount && record.elderlyCount > 0) ||
                               (record.diabetesCount && record.diabetesCount > 0) ||
@@ -1617,6 +1689,12 @@ export default function App() {
                                   <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-lg text-[11px] font-bold">
                                     <Activity className="h-3 w-3 shrink-0" />
                                     ติดเตียง {record.bedriddenCount}
+                                  </span>
+                                )}
+                                {Boolean(record.homeboundCount && record.homeboundCount > 0) && (
+                                  <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-lg text-[11px] font-bold">
+                                    <Home className="h-3 w-3 shrink-0" />
+                                    ติดบ้าน {record.homeboundCount}
                                   </span>
                                 )}
                                 {Boolean(record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) && (

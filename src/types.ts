@@ -12,6 +12,7 @@ export interface HouseholdRecord {
   collectorName: string;
   rowIndex?: number;
   bedriddenCount?: number;
+  homeboundCount?: number;
   pregnantOver36WeeksCount?: number;
   elderlyCount?: number;
   diabetesCount?: number;

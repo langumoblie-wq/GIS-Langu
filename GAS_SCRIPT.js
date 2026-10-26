@@ -39,7 +39,7 @@ function getSheet() {
   var expectedHeaders = [
     'ID', 'Timestamp', 'Village', 'HouseNumber', 'HouseRegNumber',
     'HeadOfHousehold', 'MemberCount', 'Latitude', 'Longitude', 'Notes',
-    'CollectorName', 'BedriddenCount', 'PregnantOver36WeeksCount', 'ElderlyCount',
+    'CollectorName', 'BedriddenCount', 'HomeboundCount', 'PregnantOver36WeeksCount', 'ElderlyCount',
     'DiabetesCount', 'HypertensionCount', 'DisabledCount'
   ];
   
@@ -83,11 +83,12 @@ function getRecords() {
         notes: row[9],
         collectorName: row[10] || '',
         bedriddenCount: Number(row[11]) || 0,
-        pregnantOver36WeeksCount: Number(row[12]) || 0,
-        elderlyCount: Number(row[13]) || 0,
-        diabetesCount: Number(row[14]) || 0,
-        hypertensionCount: Number(row[15]) || 0,
-        disabledCount: Number(row[16]) || 0
+        homeboundCount: Number(row[12]) || 0,
+        pregnantOver36WeeksCount: Number(row[13]) || 0,
+        elderlyCount: Number(row[14]) || 0,
+        diabetesCount: Number(row[15]) || 0,
+        hypertensionCount: Number(row[16]) || 0,
+        disabledCount: Number(row[17]) || 0
       });
     }
     
@@ -118,6 +119,7 @@ function addRecord(record) {
       record.notes || '',
       record.collectorName || '',
       record.bedriddenCount || 0,
+      record.homeboundCount || 0,
       record.pregnantOver36WeeksCount || 0,
       record.elderlyCount || 0,
       record.diabetesCount || 0,
@@ -167,7 +169,7 @@ function updateRecord(record) {
       if (data[i][0] === record.id) {
         var rowIndex = i + 1;
         // The record might only have updated fields, but we assume full replacement
-        sheet.getRange(rowIndex, 1, 1, 17).setValues([[
+        sheet.getRange(rowIndex, 1, 1, 18).setValues([[
           record.id,
           record.timestamp, // Keep original timestamp or new, depending on what client sends
           record.village,
@@ -180,6 +182,7 @@ function updateRecord(record) {
           record.notes || '',
           record.collectorName || '',
           record.bedriddenCount || 0,
+          record.homeboundCount || 0,
           record.pregnantOver36WeeksCount || 0,
           record.elderlyCount || 0,
           record.diabetesCount || 0,

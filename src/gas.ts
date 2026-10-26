@@ -72,6 +72,7 @@ function processGASData(data: any): HouseholdRecord[] {
       notes: row.notes ? String(row.notes).trim() : '',
       collectorName: row.collectorName ? String(row.collectorName).trim() : '',
       bedriddenCount: row.bedriddenCount !== undefined && row.bedriddenCount !== null && row.bedriddenCount !== '' ? Number(row.bedriddenCount) : 0,
+      homeboundCount: row.homeboundCount !== undefined && row.homeboundCount !== null && row.homeboundCount !== '' ? Number(row.homeboundCount) : 0,
       pregnantOver36WeeksCount: row.pregnantOver36WeeksCount !== undefined && row.pregnantOver36WeeksCount !== null && row.pregnantOver36WeeksCount !== '' ? Number(row.pregnantOver36WeeksCount) : 0,
       elderlyCount: row.elderlyCount !== undefined && row.elderlyCount !== null && row.elderlyCount !== '' ? Number(row.elderlyCount) : 0,
       diabetesCount: row.diabetesCount !== undefined && row.diabetesCount !== null && row.diabetesCount !== '' ? Number(row.diabetesCount) : 0,

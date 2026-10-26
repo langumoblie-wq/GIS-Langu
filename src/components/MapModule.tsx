@@ -73,6 +73,7 @@ export function MapModule({ records }: MapModuleProps) {
                 )}
                 {Boolean(
                   (record.bedriddenCount && record.bedriddenCount > 0) ||
+                  (record.homeboundCount && record.homeboundCount > 0) ||
                   (record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) ||
                   (record.elderlyCount && record.elderlyCount > 0) ||
                   (record.diabetesCount && record.diabetesCount > 0) ||
@@ -84,6 +85,9 @@ export function MapModule({ records }: MapModuleProps) {
                     {Boolean(record.bedriddenCount && record.bedriddenCount > 0) && (
                       <p className="text-rose-600 m-0">• ผู้ป่วยติดเตียง: {record.bedriddenCount} คน</p>
                     )}
+                    {Boolean(record.homeboundCount && record.homeboundCount > 0) && (
+                      <p className="text-amber-700 m-0">• ผู้ป่วยติดบ้าน: {record.homeboundCount} คน</p>
+                    )}
                     {Boolean(record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) && (
                       <p className="text-pink-600 m-0">• หญิงครรภ์ &gt; 36w: {record.pregnantOver36WeeksCount} คน</p>
                     )}
@@ -91,10 +95,10 @@ export function MapModule({ records }: MapModuleProps) {
                       <p className="text-amber-800 m-0">• ผู้สูงอายุ: {record.elderlyCount} คน</p>
                     )}
                     {Boolean(record.diabetesCount && record.diabetesCount > 0) && (
-                      <p className="text-blue-600 m-0">• เบาหวาน (NCDs): {record.diabetesCount} คน</p>
+                      <p className="text-blue-600 m-0">• เบาหวาน (DM): {record.diabetesCount} คน</p>
                     )}
                     {Boolean(record.hypertensionCount && record.hypertensionCount > 0) && (
-                      <p className="text-indigo-600 m-0">• ความดันโลหิตสูง (NCDs): {record.hypertensionCount} คน</p>
+                      <p className="text-indigo-600 m-0">• ความดันโลหิตสูง (HT): {record.hypertensionCount} คน</p>
                     )}
                     {Boolean(record.disabledCount && record.disabledCount > 0) && (
                       <p className="text-purple-700 m-0">• ผู้พิการ: {record.disabledCount} คน</p>
