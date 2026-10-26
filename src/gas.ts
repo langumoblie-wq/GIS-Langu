@@ -76,6 +76,7 @@ function processGASData(data: any): HouseholdRecord[] {
       elderlyCount: row.elderlyCount !== undefined && row.elderlyCount !== null && row.elderlyCount !== '' ? Number(row.elderlyCount) : 0,
       diabetesCount: row.diabetesCount !== undefined && row.diabetesCount !== null && row.diabetesCount !== '' ? Number(row.diabetesCount) : 0,
       hypertensionCount: row.hypertensionCount !== undefined && row.hypertensionCount !== null && row.hypertensionCount !== '' ? Number(row.hypertensionCount) : 0,
+      disabledCount: row.disabledCount !== undefined && row.disabledCount !== null && row.disabledCount !== '' ? Number(row.disabledCount) : 0,
     });
   }
   return records.reverse();

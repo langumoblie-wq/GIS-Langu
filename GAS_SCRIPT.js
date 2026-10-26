@@ -40,7 +40,7 @@ function getSheet() {
     'ID', 'Timestamp', 'Village', 'HouseNumber', 'HouseRegNumber',
     'HeadOfHousehold', 'MemberCount', 'Latitude', 'Longitude', 'Notes',
     'CollectorName', 'BedriddenCount', 'PregnantOver36WeeksCount', 'ElderlyCount',
-    'DiabetesCount', 'HypertensionCount'
+    'DiabetesCount', 'HypertensionCount', 'DisabledCount'
   ];
   
   // Initialize header if empty
@@ -86,7 +86,8 @@ function getRecords() {
         pregnantOver36WeeksCount: Number(row[12]) || 0,
         elderlyCount: Number(row[13]) || 0,
         diabetesCount: Number(row[14]) || 0,
-        hypertensionCount: Number(row[15]) || 0
+        hypertensionCount: Number(row[15]) || 0,
+        disabledCount: Number(row[16]) || 0
       });
     }
     
@@ -120,7 +121,8 @@ function addRecord(record) {
       record.pregnantOver36WeeksCount || 0,
       record.elderlyCount || 0,
       record.diabetesCount || 0,
-      record.hypertensionCount || 0
+      record.hypertensionCount || 0,
+      record.disabledCount || 0
     ]);
     
     return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
@@ -165,7 +167,7 @@ function updateRecord(record) {
       if (data[i][0] === record.id) {
         var rowIndex = i + 1;
         // The record might only have updated fields, but we assume full replacement
-        sheet.getRange(rowIndex, 1, 1, 16).setValues([[
+        sheet.getRange(rowIndex, 1, 1, 17).setValues([[
           record.id,
           record.timestamp, // Keep original timestamp or new, depending on what client sends
           record.village,
@@ -181,7 +183,8 @@ function updateRecord(record) {
           record.pregnantOver36WeeksCount || 0,
           record.elderlyCount || 0,
           record.diabetesCount || 0,
-          record.hypertensionCount || 0
+          record.hypertensionCount || 0,
+          record.disabledCount || 0
         ]]);
         return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
           .setMimeType(ContentService.MimeType.JSON);

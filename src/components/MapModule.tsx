@@ -76,7 +76,8 @@ export function MapModule({ records }: MapModuleProps) {
                   (record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) ||
                   (record.elderlyCount && record.elderlyCount > 0) ||
                   (record.diabetesCount && record.diabetesCount > 0) ||
-                  (record.hypertensionCount && record.hypertensionCount > 0)
+                  (record.hypertensionCount && record.hypertensionCount > 0) ||
+                  (record.disabledCount && record.disabledCount > 0)
                 ) && (
                   <div className="mt-2 pt-2 border-t border-gray-100 text-[11px] space-y-0.5">
                     <p className="font-bold text-[#3A4D3F] mb-1">กลุ่มเปราะบาง:</p>
@@ -94,6 +95,9 @@ export function MapModule({ records }: MapModuleProps) {
                     )}
                     {Boolean(record.hypertensionCount && record.hypertensionCount > 0) && (
                       <p className="text-indigo-600 m-0">• ความดันโลหิตสูง (NCDs): {record.hypertensionCount} คน</p>
+                    )}
+                    {Boolean(record.disabledCount && record.disabledCount > 0) && (
+                      <p className="text-purple-700 m-0">• ผู้พิการ: {record.disabledCount} คน</p>
                     )}
                   </div>
                 )}

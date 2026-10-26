@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter, AlertTriangle, Share2, UserCheck, Plus, Minus, Heart, Activity, Baby, ShieldAlert } from 'lucide-react';
+import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter, AlertTriangle, Share2, UserCheck, Plus, Minus, Heart, Activity, Baby, ShieldAlert, Settings, Database, Accessibility } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { HouseholdRecord, VILLAGES } from './types';
 import { fetchRecordsFromGAS, addRecordToGAS, deleteRecordFromGAS, updateRecordInGAS } from './gas';
@@ -19,6 +19,7 @@ export default function App() {
     elderlyCount: 0,
     diabetesCount: 0,
     hypertensionCount: 0,
+    disabledCount: 0,
   });
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
@@ -161,6 +162,7 @@ export default function App() {
       elderlyCount: Math.max(0, Number(formData.elderlyCount) || 0),
       diabetesCount: Math.max(0, Number(formData.diabetesCount) || 0),
       hypertensionCount: Math.max(0, Number(formData.hypertensionCount) || 0),
+      disabledCount: Math.max(0, Number(formData.disabledCount) || 0),
     };
 
     setIsSyncing(true);
@@ -187,6 +189,7 @@ export default function App() {
         elderlyCount: 0,
         diabetesCount: 0,
         hypertensionCount: 0,
+        disabledCount: 0,
       });
       setEditingId(null);
       showAlert('สำเร็จ', editingId ? 'อัปเดตข้อมูลลง Google Sheets สำเร็จ' : 'บันทึกข้อมูลลง Google Sheets สำเร็จ', 'success');
@@ -213,6 +216,7 @@ export default function App() {
       elderlyCount: record.elderlyCount || 0,
       diabetesCount: record.diabetesCount || 0,
       hypertensionCount: record.hypertensionCount || 0,
+      disabledCount: record.disabledCount || 0,
     });
     setEditingId(record.id);
     setActiveTab('form');
@@ -235,6 +239,7 @@ export default function App() {
       elderlyCount: 0,
       diabetesCount: 0,
       hypertensionCount: 0,
+      disabledCount: 0,
     });
     setEditingId(null);
   };
@@ -304,6 +309,7 @@ export default function App() {
       'ผู้สูงอายุ',
       'เบาหวาน (NCDs)',
       'ความดันโลหิตสูง (NCDs)',
+      'ผู้พิการ',
       'ละติจูด (Lat)',
       'ลองจิจูด (Lng)',
       'อสม./ผู้เก็บข้อมูล',
@@ -331,6 +337,7 @@ export default function App() {
           r.elderlyCount || 0,
           r.diabetesCount || 0,
           r.hypertensionCount || 0,
+          r.disabledCount || 0,
           r.latitude,
           r.longitude,
           `"${r.collectorName || ''}"`,
@@ -347,6 +354,34 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const exportToJSON = () => {
+    if (records.length === 0) {
+      showAlert('แจ้งเตือน', 'ไม่มีข้อมูลสำหรับสำรอง');
+      return;
+    }
+
+    const backupData = {
+      appName: 'ระบบบันทึกพิกัดหลังคาเรือน รพ.สต.ละงู',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      exportedAtThai: new Date().toLocaleString('th-TH'),
+      totalRecords: records.length,
+      records: records,
+    };
+
+    const jsonString = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `ข้อมูลสำรอง_รพสต_ละงู_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showAlert('สำเร็จ', `ดาวน์โหลดไฟล์สำรองข้อมูล (${records.length} หลังคาเรือน) เรียบร้อยแล้ว`, 'success');
   };
 
   // Data processing for filters and charts
@@ -406,7 +441,8 @@ export default function App() {
           (r.pregnantOver36WeeksCount && r.pregnantOver36WeeksCount > 0) ||
           (r.elderlyCount && r.elderlyCount > 0) ||
           (r.diabetesCount && r.diabetesCount > 0) ||
-          (r.hypertensionCount && r.hypertensionCount > 0)
+          (r.hypertensionCount && r.hypertensionCount > 0) ||
+          (r.disabledCount && r.disabledCount > 0)
         );
       } else if (filterVulnerable === 'BEDRIDDEN') {
         matchVulnerable = Boolean(r.bedriddenCount && r.bedriddenCount > 0);
@@ -418,6 +454,8 @@ export default function App() {
         matchVulnerable = Boolean(r.diabetesCount && r.diabetesCount > 0);
       } else if (filterVulnerable === 'HYPERTENSION') {
         matchVulnerable = Boolean(r.hypertensionCount && r.hypertensionCount > 0);
+      } else if (filterVulnerable === 'DISABLED') {
+        matchVulnerable = Boolean(r.disabledCount && r.disabledCount > 0);
       }
 
       return matchVillage && matchCollector && matchHouseNumber && matchVulnerable;
@@ -431,17 +469,19 @@ export default function App() {
       acc.elderly += r.elderlyCount || 0;
       acc.diabetes += r.diabetesCount || 0;
       acc.hypertension += r.hypertensionCount || 0;
+      acc.disabled += r.disabledCount || 0;
       if (
         (r.bedriddenCount && r.bedriddenCount > 0) ||
         (r.pregnantOver36WeeksCount && r.pregnantOver36WeeksCount > 0) ||
         (r.elderlyCount && r.elderlyCount > 0) ||
         (r.diabetesCount && r.diabetesCount > 0) ||
-        (r.hypertensionCount && r.hypertensionCount > 0)
+        (r.hypertensionCount && r.hypertensionCount > 0) ||
+        (r.disabledCount && r.disabledCount > 0)
       ) {
         acc.totalHouseholds += 1;
       }
       return acc;
-    }, { bedridden: 0, pregnant: 0, elderly: 0, diabetes: 0, hypertension: 0, totalHouseholds: 0 });
+    }, { bedridden: 0, pregnant: 0, elderly: 0, diabetes: 0, hypertension: 0, disabled: 0, totalHouseholds: 0 });
   }, [filteredRecords]);
 
   const groupedRecords = useMemo(() => {
@@ -500,9 +540,14 @@ export default function App() {
           <div className="flex items-center justify-start w-full sm:w-auto">
             <button 
               onClick={() => setIsConfiguring(!isConfiguring)} 
-              className="w-full sm:w-auto px-4 py-2 bg-white border border-[#5C7F67] text-[#5C7F67] rounded-full text-[11px] font-bold hover:bg-[#F4F5F0] transition-colors uppercase tracking-wider shadow-sm flex justify-center items-center gap-2"
+              className={`w-full sm:w-auto px-4 py-2 border rounded-full text-[11px] font-bold transition-colors uppercase tracking-wider shadow-sm flex justify-center items-center gap-2 ${
+                isConfiguring 
+                  ? 'bg-[#5C7F67] text-white border-[#5C7F67]' 
+                  : 'bg-white border-[#5C7F67] text-[#5C7F67] hover:bg-[#F4F5F0]'
+              }`}
             >
-              ตั้งค่าฐานข้อมูล (GAS)
+              <Settings className="w-3.5 h-3.5" />
+              ตั้งค่า / สำรองข้อมูล
             </button>
           </div>
         </div>
@@ -537,31 +582,83 @@ export default function App() {
       <main className="max-w-3xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         
         {isConfiguring && (
-          <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD] mb-6">
-            <h2 className="text-lg font-bold text-[#3A4D3F] mb-4">การตั้งค่า Google Apps Script Web App URL</h2>
-            <p className="text-sm text-[#7A7E74] mb-4">
-              กรุณานำ Web App URL ที่ได้จากการ Deploy สคริปต์ใน Google Sheets มาใส่ในช่องด้านล่าง
-            </p>
-            <input 
-              type="text" 
-              value={gasUrl}
-              onChange={(e) => setGasUrl(e.target.value)}
-              placeholder="https://script.google.com/macros/s/..."
-              className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow mb-4 font-mono text-[12px]"
-            />
-            <button 
-              onClick={() => {
-                if(gasUrl) {
-                  setIsConfiguring(false);
-                  loadData();
-                } else {
-                  showAlert('แจ้งเตือน', 'กรุณากรอก Web App URL ก่อน');
-                }
-              }}
-              className="px-6 py-2 bg-[#5C7F67] text-white rounded-full text-[12px] font-bold hover:bg-[#4A6753]"
-            >
-              บันทึกและเชื่อมต่อ
-            </button>
+          <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD] mb-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E6E4DD] pb-3">
+              <h2 className="text-lg font-bold text-[#3A4D3F] flex items-center gap-2">
+                <Settings className="w-5 h-5 text-[#5C7F67]" />
+                ตั้งค่าระบบและสำรองข้อมูล
+              </h2>
+              <button
+                onClick={() => setIsConfiguring(false)}
+                className="text-xs text-[#7A7E74] hover:text-[#3A4D3F] p-1.5 rounded-full hover:bg-[#F9F9F5] transition-colors"
+                title="ปิดหน้าต่างตั้งค่า"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Google Apps Script Connection */}
+            <div>
+              <h3 className="text-sm font-bold text-[#3A4D3F] mb-1 flex items-center gap-2">
+                <Database className="w-4 h-4 text-[#5C7F67]" />
+                การเชื่อมต่อ Google Apps Script Web App URL
+              </h3>
+              <p className="text-xs text-[#7A7E74] mb-3">
+                กรุณานำ Web App URL ที่ได้จากการ Deploy สคริปต์ใน Google Sheets มาใส่ในช่องด้านล่าง
+              </p>
+              <input 
+                type="text" 
+                value={gasUrl}
+                onChange={(e) => setGasUrl(e.target.value)}
+                placeholder="https://script.google.com/macros/s/..."
+                className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#5C7F67] transition-shadow mb-3 font-mono"
+              />
+              <button 
+                onClick={() => {
+                  if(gasUrl) {
+                    setIsConfiguring(false);
+                    loadData();
+                  } else {
+                    showAlert('แจ้งเตือน', 'กรุณากรอก Web App URL ก่อน');
+                  }
+                }}
+                className="px-6 py-2.5 bg-[#5C7F67] text-white rounded-full text-xs font-bold hover:bg-[#4A6753] transition-colors shadow-sm"
+              >
+                บันทึกและเชื่อมต่อ
+              </button>
+            </div>
+
+            {/* Data Backup Section */}
+            <div className="border-t border-[#E6E4DD] pt-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                <h3 className="text-sm font-bold text-[#3A4D3F] flex items-center gap-2">
+                  <Download className="w-4 h-4 text-[#5C7F67]" />
+                  สำรองข้อมูลดิบ (Backup Data)
+                </h3>
+                <span className="text-[11px] font-bold text-[#5C7F67] bg-[#F4F5F0] px-2.5 py-0.5 rounded-full self-start sm:self-auto">
+                  {records.length > 0 ? `พร้อมสำรอง ${records.length} หลังคาเรือน` : 'ยังไม่มีข้อมูลในระบบ'}
+                </span>
+              </div>
+              <p className="text-xs text-[#7A7E74] mb-4 leading-relaxed">
+                อสม. และเจ้าหน้าที่สามารถดาวน์โหลดสำเนาข้อมูลดิบทั้งหมดของ รพ.สต.ละงู เป็นไฟล์ JSON เก็บไว้ในอุปกรณ์ เพื่อความปลอดภัย ป้องกันข้อมูลสูญหาย และสามารถใช้เป็นไฟล์สำรองฉุกเฉินได้ตลอดเวลา
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={exportToJSON}
+                  disabled={records.length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3A4D3F] hover:bg-[#2D3C31] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  ดาวน์โหลดไฟล์สำรองข้อมูล (JSON)
+                </button>
+                {records.length > 0 && (
+                  <span className="text-[11px] text-[#7A7E74]">
+                    ขนาดสำรอง: {records.length} รายการ (JSON format)
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -904,6 +1001,51 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* 5. ผู้พิการ */}
+                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#E6E4DD] hover:border-[#5C7F67]/50 transition-colors">
+                    <div className="flex items-center gap-3 pr-2">
+                      <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                        <Accessibility className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-[#3A4D3F] block">5. ผู้พิการ</span>
+                        <span className="text-[10px] text-[#7A7E74]">ผู้มีความบกพร่องทางการเคลื่อนไหว ร่างกาย หรือการสื่อสาร</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, disabledCount: Math.max(0, (Number(prev.disabledCount) || 0) - 1) }))}
+                        disabled={!formData.disabledCount || Number(formData.disabledCount) <= 0}
+                        className="w-8 h-8 rounded-lg bg-[#F4F5F0] hover:bg-[#E6E4DD] disabled:opacity-30 disabled:hover:bg-[#F4F5F0] flex items-center justify-center text-[#3A4D3F] font-bold text-sm transition-colors"
+                        title="ลดจำนวน"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        id="disabledCount"
+                        name="disabledCount"
+                        value={formData.disabledCount ? formData.disabledCount : ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0);
+                          setFormData(prev => ({ ...prev, disabledCount: val }));
+                        }}
+                        placeholder="0"
+                        className="w-12 h-8 text-center bg-[#F9F9F5] border border-[#E6E4DD] rounded-lg text-xs font-bold text-[#3A4D3F] focus:outline-none focus:border-[#5C7F67]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, disabledCount: (Number(prev.disabledCount) || 0) + 1 }))}
+                        className="w-8 h-8 rounded-lg bg-[#5C7F67] hover:bg-[#4A6753] text-white flex items-center justify-center font-bold text-sm transition-colors shadow-xs"
+                        title="เพิ่มจำนวน"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1215,6 +1357,7 @@ export default function App() {
                     <option value="ELDERLY">ผู้สูงอายุ (60 ปีขึ้นไป)</option>
                     <option value="DIABETES">ผู้ป่วยโรคเบาหวาน</option>
                     <option value="HYPERTENSION">ผู้ป่วยโรคความดันโลหิตสูง</option>
+                    <option value="DISABLED">ผู้พิการ</option>
                   </select>
                 </div>
               </div>
@@ -1231,7 +1374,7 @@ export default function App() {
                   มีกลุ่มเปราะบาง {vulnerableStats.totalHouseholds} หลังคาเรือน
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                 <div className="bg-rose-50/70 border border-rose-100 p-2.5 rounded-xl">
                   <p className="text-[11px] font-bold text-rose-700 flex items-center gap-1">
                     <Activity className="h-3 w-3" /> ผู้ป่วยติดเตียง
@@ -1256,11 +1399,17 @@ export default function App() {
                   </p>
                   <p className="text-lg font-bold text-blue-900 mt-1">{vulnerableStats.diabetes} <span className="text-xs font-normal text-blue-700">คน</span></p>
                 </div>
-                <div className="bg-indigo-50/70 border border-indigo-100 p-2.5 rounded-xl col-span-2 sm:col-span-1">
+                <div className="bg-indigo-50/70 border border-indigo-100 p-2.5 rounded-xl">
                   <p className="text-[11px] font-bold text-indigo-700 flex items-center gap-1">
                     <Activity className="h-3 w-3" /> ความดันโลหิตสูง
                   </p>
                   <p className="text-lg font-bold text-indigo-900 mt-1">{vulnerableStats.hypertension} <span className="text-xs font-normal text-indigo-700">คน</span></p>
+                </div>
+                <div className="bg-purple-50/70 border border-purple-100 p-2.5 rounded-xl">
+                  <p className="text-[11px] font-bold text-purple-700 flex items-center gap-1">
+                    <Accessibility className="h-3 w-3" /> ผู้พิการ
+                  </p>
+                  <p className="text-lg font-bold text-purple-900 mt-1">{vulnerableStats.disabled} <span className="text-xs font-normal text-purple-700">คน</span></p>
                 </div>
               </div>
             </div>
@@ -1340,7 +1489,8 @@ export default function App() {
                             (record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) ||
                             (record.elderlyCount && record.elderlyCount > 0) ||
                             (record.diabetesCount && record.diabetesCount > 0) ||
-                            (record.hypertensionCount && record.hypertensionCount > 0)
+                            (record.hypertensionCount && record.hypertensionCount > 0) ||
+                            (record.disabledCount && record.disabledCount > 0)
                           ) && (
                             <div className="sm:col-span-2 pt-1 flex flex-wrap gap-1.5">
                               {Boolean(record.bedriddenCount && record.bedriddenCount > 0) && (
@@ -1371,6 +1521,12 @@ export default function App() {
                                 <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
                                   <Activity className="h-3 w-3 shrink-0" />
                                   ความดันฯ {record.hypertensionCount} คน
+                                </span>
+                              )}
+                              {Boolean(record.disabledCount && record.disabledCount > 0) && (
+                                <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
+                                  <Accessibility className="h-3 w-3 shrink-0" />
+                                  ผู้พิการ {record.disabledCount} คน
                                 </span>
                               )}
                             </div>
@@ -1453,7 +1609,8 @@ export default function App() {
                               (record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) ||
                               (record.elderlyCount && record.elderlyCount > 0) ||
                               (record.diabetesCount && record.diabetesCount > 0) ||
-                              (record.hypertensionCount && record.hypertensionCount > 0)
+                              (record.hypertensionCount && record.hypertensionCount > 0) ||
+                              (record.disabledCount && record.disabledCount > 0)
                             ) && (
                               <div className="flex flex-wrap gap-1.5 mt-2">
                                 {Boolean(record.bedriddenCount && record.bedriddenCount > 0) && (
@@ -1484,6 +1641,12 @@ export default function App() {
                                   <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg text-[11px] font-bold">
                                     <Activity className="h-3 w-3 shrink-0" />
                                     ความดันฯ {record.hypertensionCount}
+                                  </span>
+                                )}
+                                {Boolean(record.disabledCount && record.disabledCount > 0) && (
+                                  <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-lg text-[11px] font-bold">
+                                    <Accessibility className="h-3 w-3 shrink-0" />
+                                    ผู้พิการ {record.disabledCount}
                                   </span>
                                 )}
                               </div>

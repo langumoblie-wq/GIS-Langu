@@ -16,6 +16,7 @@ export interface HouseholdRecord {
   elderlyCount?: number;
   diabetesCount?: number;
   hypertensionCount?: number;
+  disabledCount?: number;
 }
 
 export const VILLAGES = [
