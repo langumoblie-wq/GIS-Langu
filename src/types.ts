@@ -11,6 +11,11 @@ export interface HouseholdRecord {
   timestamp: string;
   collectorName: string;
   rowIndex?: number;
+  bedriddenCount?: number;
+  pregnantOver36WeeksCount?: number;
+  elderlyCount?: number;
+  diabetesCount?: number;
+  hypertensionCount?: number;
 }
 
 export const VILLAGES = [

@@ -69,7 +69,33 @@ export function MapModule({ records }: MapModuleProps) {
                 <p className="text-[12px] text-[#7A7E74] m-0 leading-tight">หมู่บ้าน: <span className="font-medium text-[#3A4D3F]">{record.village}</span></p>
                 <p className="text-[12px] text-[#7A7E74] m-0 leading-tight">เจ้าบ้าน: <span className="font-medium text-[#3A4D3F]">{record.headOfHousehold}</span></p>
                 {record.collectorName && (
-                  <p className="text-[11px] text-[#A3A69F] mt-2 mb-0">เก็บข้อมูลโดย: {record.collectorName}</p>
+                  <p className="text-[11px] text-[#A3A69F] mt-1 mb-0">เก็บข้อมูลโดย: {record.collectorName}</p>
+                )}
+                {Boolean(
+                  (record.bedriddenCount && record.bedriddenCount > 0) ||
+                  (record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) ||
+                  (record.elderlyCount && record.elderlyCount > 0) ||
+                  (record.diabetesCount && record.diabetesCount > 0) ||
+                  (record.hypertensionCount && record.hypertensionCount > 0)
+                ) && (
+                  <div className="mt-2 pt-2 border-t border-gray-100 text-[11px] space-y-0.5">
+                    <p className="font-bold text-[#3A4D3F] mb-1">กลุ่มเปราะบาง:</p>
+                    {Boolean(record.bedriddenCount && record.bedriddenCount > 0) && (
+                      <p className="text-rose-600 m-0">• ผู้ป่วยติดเตียง: {record.bedriddenCount} คน</p>
+                    )}
+                    {Boolean(record.pregnantOver36WeeksCount && record.pregnantOver36WeeksCount > 0) && (
+                      <p className="text-pink-600 m-0">• หญิงครรภ์ &gt; 36w: {record.pregnantOver36WeeksCount} คน</p>
+                    )}
+                    {Boolean(record.elderlyCount && record.elderlyCount > 0) && (
+                      <p className="text-amber-800 m-0">• ผู้สูงอายุ: {record.elderlyCount} คน</p>
+                    )}
+                    {Boolean(record.diabetesCount && record.diabetesCount > 0) && (
+                      <p className="text-blue-600 m-0">• เบาหวาน (NCDs): {record.diabetesCount} คน</p>
+                    )}
+                    {Boolean(record.hypertensionCount && record.hypertensionCount > 0) && (
+                      <p className="text-indigo-600 m-0">• ความดันโลหิตสูง (NCDs): {record.hypertensionCount} คน</p>
+                    )}
+                  </div>
                 )}
               </div>
             </Popup>
