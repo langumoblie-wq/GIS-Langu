@@ -105,6 +105,26 @@ export function MapModule({ records }: MapModuleProps) {
                     )}
                   </div>
                 )}
+                {record.latitude != null && record.longitude != null && (
+                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center gap-1.5">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${record.latitude},${record.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-center py-1 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded-lg transition-colors"
+                    >
+                      Google Maps
+                    </a>
+                    <a
+                      href={`https://maps.apple.com/?ll=${record.latitude},${record.longitude}&q=${encodeURIComponent('บ้านเลขที่ ' + record.houseNumber)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-center py-1 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[10px] font-bold rounded-lg transition-colors"
+                    >
+                      Apple Maps
+                    </a>
+                  </div>
+                )}
               </div>
             </Popup>
           </Marker>

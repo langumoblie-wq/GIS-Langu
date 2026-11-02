@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter, AlertTriangle, Share2, UserCheck, Plus, Minus, Heart, Activity, Baby, ShieldAlert, Settings, Database, Accessibility } from 'lucide-react';
+import { MapPin, Save, Download, Trash2, Home, Users, FileText, AlertCircle, Map, Navigation, Loader2, Edit2, X, BarChart as BarChartIcon, Filter, AlertTriangle, Share2, UserCheck, Plus, Minus, Heart, Activity, Baby, ShieldAlert, Settings, Database, Accessibility, Search, Compass, ExternalLink } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { HouseholdRecord, VILLAGES } from './types';
 import { fetchRecordsFromGAS, addRecordToGAS, deleteRecordFromGAS, updateRecordInGAS } from './gas';
 import { Modal } from './components/Modal';
 import { MapModule } from './components/MapModule';
 import { CollectorWorkloadChart } from './components/CollectorWorkloadChart';
+import { ShareMapModal } from './components/ShareMapModal';
 
 export default function App() {
   const [records, setRecords] = useState<HouseholdRecord[]>([]);
@@ -31,11 +32,15 @@ export default function App() {
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Filters
+  // Search and Filters
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterVillage, setFilterVillage] = useState<string>('');
   const [filterCollector, setFilterCollector] = useState<string>('');
   const [filterHouseNumber, setFilterHouseNumber] = useState<string>('');
   const [filterVulnerable, setFilterVulnerable] = useState<string>('');
+
+  // Share & Map navigation modal
+  const [shareModalRecord, setShareModalRecord] = useState<HouseholdRecord | null>(null);
 
   // Dashboard chart tab view
   const [chartView, setChartView] = useState<'collector' | 'village' | 'both'>('collector');
@@ -266,33 +271,8 @@ export default function App() {
     });
   };
 
-  const handleShareLocation = async (record: HouseholdRecord) => {
-    if (!record.latitude || !record.longitude) {
-      showAlert('แจ้งเตือน', 'บ้านหลังนี้ยังไม่มีข้อมูลพิกัด GPS');
-      return;
-    }
-
-    const mapsUrl = `https://www.google.com/maps?q=${record.latitude},${record.longitude}`;
-    const shareText = `พิกัดบ้านเลขที่ ${record.houseNumber} ${record.village} (เจ้าบ้าน: ${record.headOfHousehold})\nผู้เก็บข้อมูล: ${record.collectorName}\n${mapsUrl}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `พิกัดบ้านเลขที่ ${record.houseNumber}`,
-          text: shareText,
-          url: mapsUrl
-        });
-      } catch (error) {
-        console.log('Error sharing', error);
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareText);
-        showAlert('สำเร็จ', 'คัดลอกลิงก์แผนที่ลงในคลิปบอร์ดเรียบร้อยแล้ว', 'success');
-      } catch (err) {
-        showAlert('แจ้งเตือน', 'ไม่สามารถคัดลอกลิงก์ได้ กรุณาคัดลอกพิกัดด้วยตัวเอง');
-      }
-    }
+  const handleShareLocation = (record: HouseholdRecord) => {
+    setShareModalRecord(record);
   };
 
   const exportToCSV = () => {
@@ -431,7 +411,24 @@ export default function App() {
   }, [filterVillage, availableCollectors, availableHouseNumbers, filterCollector, filterHouseNumber]);
 
   const filteredRecords = useMemo(() => {
+    const searchTerms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
     return records.filter(r => {
+      // Real-time search query across houseNumber, headOfHousehold, collectorName, houseRegistrationNumber, village, notes
+      if (searchTerms.length > 0) {
+        const searchableText = [
+          r.houseNumber || '',
+          r.headOfHousehold || '',
+          r.houseRegistrationNumber || '',
+          r.collectorName || '',
+          r.village || '',
+          r.notes || ''
+        ].join(' ').toLowerCase();
+
+        const matchSearch = searchTerms.every(term => searchableText.includes(term));
+        if (!matchSearch) return false;
+      }
+
       const matchVillage = !filterVillage || r.village === filterVillage;
       let matchCollector = true;
       if (filterCollector === '__UNASSIGNED__') {
@@ -470,7 +467,7 @@ export default function App() {
 
       return matchVillage && matchCollector && matchHouseNumber && matchVulnerable;
     });
-  }, [records, filterVillage, filterCollector, filterHouseNumber, filterVulnerable]);
+  }, [records, searchQuery, filterVillage, filterCollector, filterHouseNumber, filterVulnerable]);
 
   const vulnerableStats = useMemo(() => {
     return filteredRecords.reduce((acc, r) => {
@@ -532,6 +529,12 @@ export default function App() {
         message={modal.message}
         onClose={() => setModal({ ...modal, isOpen: false })}
         onConfirm={modal.onConfirm}
+      />
+
+      <ShareMapModal
+        isOpen={Boolean(shareModalRecord)}
+        onClose={() => setShareModalRecord(null)}
+        record={shareModalRecord}
       />
 
       {/* Header */}
@@ -1346,77 +1349,135 @@ export default function App() {
             </div>
 
             {/* Filters Section */}
-            <div id="records-list-section" className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD]">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-bold text-[#3A4D3F] flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-[#5C7F67]" />
-                  ตัวกรองข้อมูล
-                </h2>
-                <button
-                  onClick={() => {
-                    setFilterVillage('');
-                    setFilterCollector('');
-                    setFilterHouseNumber('');
-                    setFilterVulnerable('');
-                  }}
-                  className="text-[11px] text-[#7A7E74] hover:text-[#5C7F67] font-bold underline"
-                >
-                  ล้างตัวกรอง
-                </button>
+            <div id="records-list-section" className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#E6E4DD] space-y-5">
+              {/* Real-time Search Bar */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="realtime-search-input" className="text-[13px] font-bold text-[#3A4D3F] flex items-center gap-1.5 cursor-pointer">
+                    <Search className="h-4 w-4 text-[#5C7F67]" />
+                    ค้นหาข้อมูลแบบ Real-time
+                  </label>
+                  {searchQuery && (
+                    <span className="text-[11px] font-bold text-[#5C7F67] bg-[#F4F5F0] px-2.5 py-0.5 rounded-full">
+                      พบ {filteredRecords.length} หลังคาเรือน
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#7A7E74]">
+                    <Search className="h-4 w-4 text-[#5C7F67]" />
+                  </div>
+                  <input
+                    id="realtime-search-input"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="ค้นหาทันที: บ้านเลขที่ (เช่น 12, 45/1), ชื่อเจ้าบ้าน, อสม., เลขทะเบียนบ้าน..."
+                    className="w-full pl-10 pr-10 py-3 bg-[#F9F9F5] border border-[#E6E4DD] rounded-2xl text-sm font-medium text-[#2D302E] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#5C7F67]/20 focus:border-[#5C7F67] transition-all shadow-inner"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#7A7E74] hover:text-[#2D302E] transition-colors"
+                      title="ล้างคำค้นหา"
+                    >
+                      <X className="h-4 w-4 bg-[#E6E4DD] hover:bg-[#D6D3C9] rounded-full p-0.5 text-[#3A4D3F]" />
+                    </button>
+                  )}
+                </div>
+                {searchQuery && (
+                  <div className="flex items-center justify-between mt-2 px-1 text-xs">
+                    <span className="text-[#7A7E74]">
+                      กำลังค้นหา: <strong className="text-[#3A4D3F]">"{searchQuery}"</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="text-[#E07A5F] hover:underline font-bold text-[11px]"
+                    >
+                      ล้างคำค้นหา
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">หมู่บ้าน</label>
-                  <select
-                    value={filterVillage}
-                    onChange={(e) => setFilterVillage(e.target.value)}
-                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow"
-                  >
-                    <option value="">ทั้งหมด</option>
-                    {VILLAGES.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
+
+              {/* Advanced Dropdown Filters */}
+              <div className="pt-3 border-t border-[#E6E4DD]">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-[#7A7E74] uppercase tracking-wider flex items-center gap-1.5">
+                    <Filter className="h-3.5 w-3.5 text-[#5C7F67]" />
+                    ตัวกรองละเอียด
+                  </h3>
+                  {(searchQuery || filterVillage || filterCollector || filterHouseNumber || filterVulnerable) && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setFilterVillage('');
+                        setFilterCollector('');
+                        setFilterHouseNumber('');
+                        setFilterVulnerable('');
+                      }}
+                      className="text-[11px] text-[#7A7E74] hover:text-[#5C7F67] font-bold underline"
+                    >
+                      ล้างตัวกรองทั้งหมด
+                    </button>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">อสม.ที่รับผิดชอบ</label>
-                  <select
-                    value={filterCollector}
-                    onChange={(e) => setFilterCollector(e.target.value)}
-                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow disabled:opacity-50"
-                  >
-                    <option value="">ทั้งหมด</option>
-                    <option value="__UNASSIGNED__">(ยังไม่ระบุ อสม.)</option>
-                    {availableCollectors.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">บ้านเลขที่</label>
-                  <select
-                    value={filterHouseNumber}
-                    onChange={(e) => setFilterHouseNumber(e.target.value)}
-                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow disabled:opacity-50"
-                    disabled={availableHouseNumbers.length === 0}
-                  >
-                    <option value="">ทั้งหมด</option>
-                    {availableHouseNumbers.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">กลุ่มเปราะบาง</label>
-                  <select
-                    value={filterVulnerable}
-                    onChange={(e) => setFilterVulnerable(e.target.value)}
-                    className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow"
-                  >
-                    <option value="">ทั้งหมด</option>
-                    <option value="ANY">มีกลุ่มเปราะบาง (ใดก็ได้)</option>
-                    <option value="BEDRIDDEN">1. ผู้ป่วยติดเตียง</option>
-                    <option value="HOMEBOUND">2. ผู้ป่วยติดบ้าน</option>
-                    <option value="PREGNANT">3. หญิงตั้งครรภ์ &gt; 36 สัปดาห์</option>
-                    <option value="ELDERLY">4. ผู้สูงอายุ (60 ปีขึ้นไป)</option>
-                    <option value="DIABETES">5. โรคเบาหวาน (DM)</option>
-                    <option value="HYPERTENSION">5. โรคความดันโลหิตสูง (HT)</option>
-                    <option value="DISABLED">6. ผู้พิการ</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">หมู่บ้าน</label>
+                    <select
+                      value={filterVillage}
+                      onChange={(e) => setFilterVillage(e.target.value)}
+                      className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow"
+                    >
+                      <option value="">ทั้งหมด</option>
+                      {VILLAGES.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">อสม.ที่รับผิดชอบ</label>
+                    <select
+                      value={filterCollector}
+                      onChange={(e) => setFilterCollector(e.target.value)}
+                      className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow disabled:opacity-50"
+                    >
+                      <option value="">ทั้งหมด</option>
+                      <option value="__UNASSIGNED__">(ยังไม่ระบุ อสม.)</option>
+                      {availableCollectors.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">บ้านเลขที่</label>
+                    <select
+                      value={filterHouseNumber}
+                      onChange={(e) => setFilterHouseNumber(e.target.value)}
+                      className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow disabled:opacity-50"
+                      disabled={availableHouseNumbers.length === 0}
+                    >
+                      <option value="">ทั้งหมด</option>
+                      {availableHouseNumbers.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#7A7E74] uppercase ml-1 mb-1">กลุ่มเปราะบาง</label>
+                    <select
+                      value={filterVulnerable}
+                      onChange={(e) => setFilterVulnerable(e.target.value)}
+                      className="w-full bg-[#F9F9F5] border border-[#E6E4DD] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#5C7F67] transition-shadow"
+                    >
+                      <option value="">ทั้งหมด</option>
+                      <option value="ANY">มีกลุ่มเปราะบาง (ใดก็ได้)</option>
+                      <option value="BEDRIDDEN">1. ผู้ป่วยติดเตียง</option>
+                      <option value="HOMEBOUND">2. ผู้ป่วยติดบ้าน</option>
+                      <option value="PREGNANT">3. หญิงตั้งครรภ์ &gt; 36 สัปดาห์</option>
+                      <option value="ELDERLY">4. ผู้สูงอายุ (60 ปีขึ้นไป)</option>
+                      <option value="DIABETES">5. โรคเบาหวาน (DM)</option>
+                      <option value="HYPERTENSION">5. โรคความดันโลหิตสูง (HT)</option>
+                      <option value="DISABLED">6. ผู้พิการ</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1496,7 +1557,24 @@ export default function App() {
             {filteredRecords.length === 0 ? (
               <div className="bg-white rounded-[2rem] shadow-sm border border-[#E6E4DD] p-12 text-center text-[#7A7E74]">
                 <MapPin className="mx-auto h-12 w-12 text-[#D6D3C9] mb-4" />
-                <p className="font-medium">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</p>
+                <p className="font-bold text-base text-[#3A4D3F]">
+                  {searchQuery ? `ไม่พบข้อมูลที่ตรงกับ "${searchQuery}"` : 'ไม่พบข้อมูลที่ตรงกับเงื่อนไข'}
+                </p>
+                <p className="text-xs text-[#7A7E74] mt-1">ลองเปลี่ยนคำค้นหา หรือกดปุ่มด้านล่างเพื่อแสดงข้อมูลทั้งหมด</p>
+                {(searchQuery || filterVillage || filterCollector || filterHouseNumber || filterVulnerable) && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterVillage('');
+                      setFilterCollector('');
+                      setFilterHouseNumber('');
+                      setFilterVulnerable('');
+                    }}
+                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-[#5C7F67] text-white rounded-full text-xs font-bold hover:bg-[#4A6753] transition-colors shadow-sm"
+                  >
+                    ล้างตัวกรองทั้งหมด
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-8">
@@ -1521,9 +1599,9 @@ export default function App() {
                             <button
                               onClick={() => handleShareLocation(record)}
                               className="text-[#5C7F67] hover:text-[#4A6753] p-2 rounded-xl hover:bg-[#5C7F67]/10 transition-colors"
-                              title="แชร์พิกัด"
+                              title="เปิดแผนที่นำทาง & แชร์พิกัด"
                             >
-                              <Share2 className="h-4 w-4" />
+                              <Compass className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleEdit(record)}
@@ -1602,12 +1680,63 @@ export default function App() {
                               )}
                             </div>
                           )}
-                          <div className="sm:col-span-2 flex items-center gap-2 mt-2 text-[11px] font-mono bg-[#F9F9F5] p-2.5 rounded-xl border border-[#E6E4DD]">
-                            <div className="bg-[#A3B18A]/20 p-1 rounded-md text-[#5C7F67]">
-                              <MapPin className="h-3 w-3 shrink-0" />
+                          {record.latitude != null && record.longitude != null ? (
+                            <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-2 p-2.5 rounded-xl border border-[#E6E4DD] bg-[#F9F9F5]">
+                              <div className="flex items-center gap-2 text-[11px] font-mono">
+                                <div className="bg-[#A3B18A]/20 p-1 rounded-md text-[#5C7F67] shrink-0">
+                                  <MapPin className="h-3.5 w-3.5" />
+                                </div>
+                                <span className="text-[#3A4D3F] break-all">
+                                  {record.latitude.toFixed(6)}, {record.longitude.toFixed(6)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleShareLocation(record)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#5C7F67] hover:bg-[#4A6753] text-white rounded-lg text-[11px] font-bold shadow-sm transition-colors"
+                                  title="เปิดแผนที่นำทาง และแชร์พิกัด"
+                                >
+                                  <Compass className="h-3.5 w-3.5" />
+                                  <span>เปิดแผนที่ / นำทาง</span>
+                                </button>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${record.latitude},${record.longitude}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors"
+                                  title="เปิดใน Google Maps"
+                                >
+                                  Google
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                                <a
+                                  href={`https://maps.apple.com/?ll=${record.latitude},${record.longitude}&q=${encodeURIComponent('บ้านเลขที่ ' + record.houseNumber + ' ' + record.headOfHousehold)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-bold transition-colors"
+                                  title="เปิดใน Apple Maps"
+                                >
+                                  Apple
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </div>
                             </div>
-                            <span className="text-[#3A4D3F] break-all">{record.latitude?.toFixed(6)}, {record.longitude?.toFixed(6)}</span>
-                          </div>
+                          ) : (
+                            <div className="sm:col-span-2 flex items-center justify-between gap-2 mt-2 p-2.5 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 text-amber-800 text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                <span>ยังไม่มีข้อมูลพิกัด GPS</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(record)}
+                                className="text-[11px] font-bold text-amber-900 bg-amber-200/80 hover:bg-amber-200 px-2.5 py-1 rounded-lg transition-colors"
+                              >
+                                บันทึกพิกัด
+                              </button>
+                            </div>
+                          )}
                           {record.notes && (
                             <p className="sm:col-span-2 mt-2 text-[12px] text-[#5C7F67] bg-[#F4F5F0] p-3 rounded-xl border border-dashed border-[#A3B18A] flex items-start gap-2 leading-relaxed">
                               <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {record.notes}
